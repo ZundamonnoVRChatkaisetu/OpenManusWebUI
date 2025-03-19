@@ -4,10 +4,11 @@ GitHubクライアント - GitHub APIとの通信を担当
 import httpx
 import logging
 import json
+import os
 from typing import Dict, List, Any, Optional, Union
 import base64
 
-from ..config import get_tool_config, get_env_setting
+from ..config import get_tool_config
 
 # ロガー設定
 logger = logging.getLogger(__name__)
@@ -25,11 +26,32 @@ class GitHubClient:
         self.config = get_tool_config("github")
         
         # 設定値の取得（環境変数 > 設定ファイル）
-        self.access_token = get_env_setting("GITHUB_PERSONAL_ACCESS_TOKEN") or self.config.get("access_token", "")
-        self.username = self.config.get("username", "")
+        self.access_token = self._get_token_from_env() or self.config.get("access_token", "")
+        self.username = os.environ.get("GITHUB_USERNAME", "") or self.config.get("username", "")
         self.timeout = 30.0  # API呼び出しのタイムアウト（秒）
         
-        logger.info(f"GitHubClient初期化: アクセストークン={bool(self.access_token)}, ユーザー名={self.username}")
+        # ログ出力（トークンの有無のみ表示）
+        if self.access_token:
+            logger.info(f"GitHubClient初期化: アクセストークンあり, ユーザー名={self.username}")
+        else:
+            logger.warning("GitHubClient初期化: アクセストークンなし - APIが制限されます")
+    
+    def _get_token_from_env(self) -> str:
+        """環境変数からGitHubトークンを取得（複数の可能な環境変数名をチェック）"""
+        # 複数の可能性のある環境変数名をチェック
+        env_var_names = [
+            "GITHUB_PERSONAL_ACCESS_TOKEN",  # Claude MCP形式
+            "GITHUB_ACCESS_TOKEN",           # 一般的な形式
+            "GITHUB_TOKEN"                   # GitHub Actions等で使用される形式
+        ]
+        
+        for var_name in env_var_names:
+            token = os.environ.get(var_name)
+            if token:
+                logger.info(f"環境変数 {var_name} からGitHubトークンを取得しました")
+                return token
+        
+        return ""
 
     def _get_headers(self) -> Dict[str, str]:
         """API呼び出し用のヘッダー取得"""
@@ -41,7 +63,6 @@ class GitHubClient:
         if self.access_token:
             # Bearer形式での認証（新しい推奨形式）
             headers["Authorization"] = f"Bearer {self.access_token}"
-            logger.debug("GitHub API認証ヘッダー: Bearer形式を使用")
         
         return headers
 
@@ -355,9 +376,25 @@ class GitHubClient:
             Dict[str, Any]: ユーザー情報
         """
         try:
+            if not self.access_token:
+                raise ValueError("GitHubアクセストークンが設定されていません。接続テストは実行できません。")
+                
             logger.info("GitHub ユーザー情報取得リクエスト")
             result = await self._make_request("GET", "/user")
-            logger.info(f"GitHub ユーザー情報取得成功: {result.get('login', '不明')}")
+            login = result.get('login', '不明')
+            logger.info(f"GitHub ユーザー情報取得成功: {login}")
+            
+            # ユーザー名を自動更新
+            if login and login != self.username:
+                logger.info(f"GitHubユーザー名を更新: {self.username} -> {login}")
+                self.username = login
+                
+                # 設定も自動更新
+                from ..config import update_tool_config
+                config = self.config.copy()
+                config["username"] = login
+                update_tool_config("github", config)
+                
             return result
         except Exception as e:
             logger.error(f"GitHub ユーザー情報取得失敗: {str(e)}")
