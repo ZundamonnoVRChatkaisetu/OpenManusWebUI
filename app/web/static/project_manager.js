@@ -7,6 +7,9 @@ export class ProjectManager {
         this.currentProjectId = null;
         this.currentSessionId = null;
         this.handleSessionSelect = handleSessionSelect;
+        
+        // Claudeライクなプロジェクト管理のためにプロジェクト選択ハンドラーを保持
+        this.handleProjectSelect = null;
     }
 
     init() {
@@ -34,6 +37,11 @@ export class ProjectManager {
         
         // プロジェクト一覧を読み込み
         this.loadProjects();
+    }
+
+    // プロジェクト選択ハンドラーを設定（外部から呼び出し用）
+    setProjectSelectHandler(handler) {
+        this.handleProjectSelect = handler;
     }
 
     bindEvents() {
@@ -155,6 +163,11 @@ export class ProjectManager {
             } else {
                 this.currentSessionId = null;
             }
+            
+            // 外部のプロジェクト選択ハンドラを呼び出し
+            if (this.handleProjectSelect) {
+                this.handleProjectSelect(projectId);
+            }
         } catch (error) {
             console.error('プロジェクト詳細の読み込みに失敗しました:', error);
         }
@@ -270,6 +283,11 @@ export class ProjectManager {
             
             const sessionData = await response.json();
             // メッセージ表示などの処理
+            
+            // チャット履歴を表示する場合、ここでメッセージを取得して表示
+            // if (sessionData.messages && sessionData.messages.length > 0) {
+            //     this.displayChatHistory(sessionData.messages);
+            // }
         } catch (error) {
             console.error('セッション詳細の読み込みに失敗しました:', error);
         }
