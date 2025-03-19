@@ -185,7 +185,7 @@ class LLM:
         self,
         messages: List[Union[dict, Message]],
         system_msgs: Optional[List[Union[dict, Message]]] = None,
-        timeout: int = 60,
+        timeout: int = 120,  # タイムアウト値を60秒から120秒に増加
         tools: Optional[List[dict]] = None,
         tool_choice: Literal["none", "auto", "required"] = "auto",
         temperature: Optional[float] = None,
@@ -197,7 +197,7 @@ class LLM:
         Args:
             messages: List of conversation messages
             system_msgs: Optional system messages to prepend
-            timeout: Request timeout in seconds
+            timeout: Request timeout in seconds (default: 120s)
             tools: List of tools to use
             tool_choice: Tool choice strategy
             temperature: Sampling temperature for the response
@@ -229,6 +229,9 @@ class LLM:
                     if not isinstance(tool, dict) or "type" not in tool:
                         raise ValueError("Each tool must be a dict with 'type' field")
 
+            # ログ出力を追加（リクエスト開始時）
+            logger.info(f"Sending request to LLM with timeout: {timeout}s")
+            
             # Set up the completion request
             response = await self.client.chat.completions.create(
                 model=self.model,
@@ -240,6 +243,9 @@ class LLM:
                 timeout=timeout,
                 **kwargs,
             )
+
+            # ログ出力を追加（リクエスト成功時）
+            logger.info("LLM request completed successfully")
 
             # Check if response is valid
             if not response.choices or not response.choices[0].message:
@@ -258,7 +264,11 @@ class LLM:
                 logger.error("Rate limit exceeded. Consider increasing retry attempts.")
             elif isinstance(oe, APIError):
                 logger.error(f"API error: {oe}")
+            else:
+                # その他のOpenAIErrorの詳細をログに出力
+                logger.error(f"OpenAI error in ask_tool: {type(oe).__name__} - {oe}")
             raise
         except Exception as e:
-            logger.error(f"Unexpected error in ask_tool: {e}")
+            # 例外の詳細な情報をログに出力
+            logger.error(f"Unexpected error in ask_tool: {type(e).__name__} - {e}")
             raise
