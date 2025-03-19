@@ -47,6 +47,9 @@ class App {
         this.thinkingManager.init();
         this.workspaceManager.init();
         this.fileViewerManager.init();
+        
+        // プロジェクト選択ハンドラーを設定
+        this.projectManager.setProjectSelectHandler(this.handleProjectSelect.bind(this));
         this.projectManager.init();
 
         // 加载工作区文件
@@ -92,17 +95,26 @@ class App {
         console.log(`选择项目: ${projectId}`);
         this.currentProjectId = projectId;
         
+        // プロジェクト選択時にチャット履歴をクリア
+        this.chatManager.clearMessages();
+        
         // 工作区文件管理器に選択したプロジェクトIDを設定
         this.workspaceManager.setCurrentProjectId(projectId);
         
         // 项目选择后立即刷新工作区文件
         this.loadWorkspaceFiles();
+        
+        // UIにプロジェクト名を表示
+        this.updateProjectTitle();
     }
 
     // 处理会话选择
-    handleSessionSelect(sessionId) {
+    async handleSessionSelect(sessionId) {
         console.log(`选择会话: ${sessionId}`);
         this.sessionId = sessionId;
+        
+        // セッション選択時にチャット履歴をクリア
+        this.chatManager.clearMessages();
         
         // セッション選択時に現在のプロジェクトIDを取得
         const { projectId } = this.projectManager.getCurrentSession();
@@ -114,6 +126,73 @@ class App {
             
             // プロジェクト固有のファイルを表示するためリフレッシュ
             this.loadWorkspaceFiles();
+        }
+        
+        // セッション詳細を取得（チャット履歴を含む）
+        try {
+            const response = await fetch(`/api/sessions/${sessionId}`);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch session: ${response.status}`);
+            }
+            
+            const sessionData = await response.json();
+            console.log('セッション詳細を取得:', sessionData);
+            
+            // チャット履歴があれば表示
+            if (sessionData.messages && sessionData.messages.length > 0) {
+                this.loadChatHistory(sessionData.messages);
+            }
+            
+        } catch (error) {
+            console.error('セッション詳細の取得に失敗:', error);
+        }
+        
+        // UIにセッション名を表示
+        this.updateSessionTitle();
+    }
+    
+    // チャット履歴を読み込んで表示
+    loadChatHistory(messages) {
+        // メッセージを時系列でソート
+        const sortedMessages = [...messages].sort((a, b) => {
+            return new Date(a.created_at) - new Date(b.created_at);
+        });
+        
+        // チャットコンテナをクリア
+        this.chatManager.clearMessages();
+        
+        // メッセージを表示
+        sortedMessages.forEach(message => {
+            if (message.role === 'user') {
+                this.chatManager.addUserMessage(message.content, false);
+            } else if (message.role === 'assistant') {
+                this.chatManager.addAIMessage(message.content, false);
+            }
+        });
+        
+        // 最後までスクロール
+        this.chatManager.scrollToBottom();
+    }
+    
+    // プロジェクトタイトルを更新
+    updateProjectTitle() {
+        const projectData = this.projectManager.getCurrentProjectData();
+        if (projectData) {
+            const titleElement = document.querySelector('.project-title');
+            if (titleElement) {
+                titleElement.textContent = projectData.name || t('untitled_project');
+            }
+        }
+    }
+    
+    // セッションタイトルを更新
+    updateSessionTitle() {
+        const sessionData = this.projectManager.getCurrentSessionData();
+        if (sessionData) {
+            const titleElement = document.querySelector('.session-title-display');
+            if (titleElement) {
+                titleElement.textContent = sessionData.title || t('untitled_session');
+            }
         }
     }
 
@@ -281,6 +360,11 @@ class App {
         // 如果处理完成，刷新工作区文件
         if (data.status === 'completed') {
             setTimeout(() => this.loadWorkspaceFiles(), 1000);
+            
+            // セッションリストを更新（新しいセッションが作成された場合）
+            if (this.currentProjectId) {
+                setTimeout(() => this.projectManager.refreshCurrentProject(), 1500);
+            }
         }
     }
 
