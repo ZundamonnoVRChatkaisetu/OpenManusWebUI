@@ -26,7 +26,7 @@ from app.flow.base import FlowType
 from app.flow.flow_factory import FlowFactory
 from app.web.log_handler import capture_session_logs, get_logs
 from app.web.log_parser import get_all_logs_info, get_latest_log_info, parse_log_file
-from app.web.thinking_tracker import ThinkingTracker
+from app.web.thinking_tracker import ThinkingTracker, set_language
 
 
 # 控制是否自动打开浏览器 (读取环境变量，默认为True)
@@ -89,6 +89,10 @@ class SessionRequest(BaseModel):
     prompt: str
 
 
+class LanguageRequest(BaseModel):
+    language: str
+
+
 @app.get("/", response_class=HTMLResponse)
 async def get_home(request: Request):
     """主页入口 - 使用connected界面"""
@@ -113,6 +117,18 @@ async def get_connected_interface(request: Request):
             current_dir / "static" / "connected_interface.html", encoding="utf-8"
         ).read()
     )
+
+
+@app.post("/api/set_language")
+async def update_language(lang_req: LanguageRequest):
+    """更新后端语言设置"""
+    language = lang_req.language
+    if language in ["zh-CN", "en-US", "ja-JP"]:
+        # 更新thinking_tracker的语言设置
+        set_language(language)
+        return {"success": True, "language": language}
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported language")
 
 
 @app.post("/api/chat")
