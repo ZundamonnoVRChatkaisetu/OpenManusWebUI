@@ -7,7 +7,7 @@ import json
 from typing import Dict, List, Any, Optional, Union
 import base64
 
-from ..config import get_tool_config
+from ..config import get_tool_config, get_env_setting
 
 # ロガー設定
 logger = logging.getLogger(__name__)
@@ -23,9 +23,13 @@ class GitHubClient:
     def __init__(self):
         """GitHubクライアントの初期化"""
         self.config = get_tool_config("github")
-        self.access_token = self.config.get("access_token", "")
+        
+        # 設定値の取得（環境変数 > 設定ファイル）
+        self.access_token = get_env_setting("GITHUB_PERSONAL_ACCESS_TOKEN") or self.config.get("access_token", "")
         self.username = self.config.get("username", "")
         self.timeout = 30.0  # API呼び出しのタイムアウト（秒）
+        
+        logger.info(f"GitHubClient初期化: アクセストークン={bool(self.access_token)}, ユーザー名={self.username}")
 
     def _get_headers(self) -> Dict[str, str]:
         """API呼び出し用のヘッダー取得"""
@@ -35,7 +39,9 @@ class GitHubClient:
         }
         
         if self.access_token:
-            headers["Authorization"] = f"token {self.access_token}"
+            # Bearer形式での認証（新しい推奨形式）
+            headers["Authorization"] = f"Bearer {self.access_token}"
+            logger.debug("GitHub API認証ヘッダー: Bearer形式を使用")
         
         return headers
 
@@ -54,6 +60,8 @@ class GitHubClient:
         if not self.access_token:
             logger.warning("GitHub Access Tokenが設定されていません。API呼び出しが制限される可能性があります。")
         
+        logger.info(f"GitHub APIリクエスト: {method} {url}")
+        
         # HTTPXクライアントを使用してリクエスト
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             try:
@@ -68,16 +76,31 @@ class GitHubClient:
                 
                 # レート制限情報をログに記録
                 rate_limit = response.headers.get("X-RateLimit-Remaining", "N/A")
-                logger.debug(f"GitHub API リクエスト: {url}, 残りレート制限: {rate_limit}")
+                logger.debug(f"GitHub API レスポンスステータス: {response.status_code}, 残りレート制限: {rate_limit}")
+                
+                # レスポンスの詳細をログに出力
+                content_type = response.headers.get("Content-Type", "")
+                logger.debug(f"レスポンスContent-Type: {content_type}")
+                
+                # エラーの場合は詳細をログに出力
+                if response.status_code >= 400:
+                    try:
+                        error_detail = response.json()
+                        logger.error(f"GitHub APIエラー: {response.status_code} - {json.dumps(error_detail)}")
+                    except:
+                        logger.error(f"GitHub APIエラー: {response.status_code} - {response.text}")
                 
                 # レスポンス確認
                 response.raise_for_status()
                 
                 # JSONレスポンスの場合
-                if "application/json" in response.headers.get("Content-Type", ""):
-                    return response.json()
+                if "application/json" in content_type:
+                    result = response.json()
+                    logger.debug(f"GitHub API JSONレスポンス: {json.dumps(result)[:500]}...")
+                    return result
                 
                 # それ以外の場合はテキストとして返す
+                logger.debug(f"GitHub API テキストレスポンス: {response.text[:500]}...")
                 return {"content": response.text}
             
             except httpx.HTTPStatusError as e:
@@ -87,6 +110,9 @@ class GitHubClient:
                 try:
                     error_data = e.response.json()
                     error_message += f" - {error_data.get('message', '')}"
+                    if 'documentation_url' in error_data:
+                        error_message += f" (ドキュメント: {error_data['documentation_url']})"
+                    logger.error(f"GitHub APIエラー詳細: {json.dumps(error_data)}")
                 except:
                     error_message += f" - {e.response.text}"
                 
@@ -328,4 +354,11 @@ class GitHubClient:
         Returns:
             Dict[str, Any]: ユーザー情報
         """
-        return await self._make_request("GET", "/user")
+        try:
+            logger.info("GitHub ユーザー情報取得リクエスト")
+            result = await self._make_request("GET", "/user")
+            logger.info(f"GitHub ユーザー情報取得成功: {result.get('login', '不明')}")
+            return result
+        except Exception as e:
+            logger.error(f"GitHub ユーザー情報取得失敗: {str(e)}")
+            raise
