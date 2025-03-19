@@ -22,18 +22,18 @@ OpenManus Web UIは、高度なAIアシスタント機能を備えたウェブ�
 
 ### 方法1: condaを使用
 
-1. リポジトリをクローン:
+1. 新しいconda環境を作成:
+
+```bash
+conda create -n open_manus python=3.12
+conda activate open_manus
+```
+
+2. リポジトリをクローン:
 
 ```bash
 git clone https://github.com/ZundamonnoVRChatkaisetu/OpenManusWebUI.git
 cd OpenManusWebUI
-```
-
-2. 新しいPython環境を作成:
-
-```bash
-python3.12 -m venv venv
-.\venv\Scripts\activate  
 ```
 
 3. 依存ライブラリをインストール:
@@ -85,23 +85,19 @@ cp config/config.example.toml config/config.toml
 2. `config/config.toml`を編集してAPIキーを追加し設定をカスタマイズ:
 
 ```toml
-# Global LLM configuration
+# グローバルLLM設定
 [llm]
-api_type = "openai"
-model = "gemma-3-12b-it" 
-base_url = "http://localhost:1234/v1"
-api_key = "dummy-key"
+model = "gpt-4o"
+base_url = "https://api.openai.com/v1"
+api_key = "sk-..."  # 実際のAPIキーに置き換え
 max_tokens = 4096
-temperature = 0.7
+temperature = 0.0
 
-# 同じ設定をビジョンモデルにも適用
+# 特定のLLMモデル向けのオプション設定
 [llm.vision]
-api_type = "openai"
-model = "gemma-3-12b-it"
-base_url = "http://localhost:1234/v1"
-api_key = "dummy-key"
-max_tokens = 4096
-temperature = 0.7
+model = "gpt-4o"
+base_url = "https://api.openai.com/v1"
+api_key = "sk-..."  # 実際のAPIキーに置き換え
 ```
 
 ## クイックスタート
@@ -200,6 +196,16 @@ Web UIは次の主要セクションで構成されています:
 - **メッセージ送信**: テキストエリアに入力して「送信」ボタンをクリック
 - **処理停止**: 長時間の処理を「停止」ボタンで中断
 - **履歴クリア**: 「クリア」ボタンでチャット履歴をリセット
+
+## トラブルシューティング
+
+アプリケーション使用中に問題が発生した場合は、[トラブルシューティングガイド](TROUBLESHOOTING.md)を参照してください。一般的な問題の解決方法が記載されています。
+
+主な問題と解決策:
+- LMStudioの起動関連の問題
+- 権限関連のエラー
+- ファイル操作のエラー
+- その他の一般的な問題
 
 ## 開発者向け情報
 
