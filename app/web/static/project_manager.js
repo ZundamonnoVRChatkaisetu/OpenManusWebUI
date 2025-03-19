@@ -10,6 +10,8 @@ export class ProjectManager {
     }
 
     init() {
+        console.log('プロジェクト管理を初期化中...');
+        
         // プロジェクトリスト要素
         this.projectListElement = document.getElementById('project-list');
         
@@ -35,25 +37,34 @@ export class ProjectManager {
     }
 
     bindEvents() {
+        console.log('プロジェクト管理のイベントハンドラを登録...');
+        
         // 新規プロジェクト作成ボタン
         if (this.newProjectBtn) {
             this.newProjectBtn.addEventListener('click', () => this.createNewProject());
+        } else {
+            console.warn('新規プロジェクトボタンが見つかりません');
         }
         
         // プロジェクト保存ボタン
         if (this.saveProjectBtn) {
             this.saveProjectBtn.addEventListener('click', () => this.saveCurrentProject());
+        } else {
+            console.warn('プロジェクト保存ボタンが見つかりません');
         }
         
         // 新規セッション作成ボタン
         if (this.newSessionBtn) {
             this.newSessionBtn.addEventListener('click', () => this.createNewSession());
+        } else {
+            console.warn('新規セッションボタンが見つかりません');
         }
     }
 
     // プロジェクト一覧を読み込む
     async loadProjects() {
         try {
+            console.log('プロジェクト一覧を読み込み中...');
             const response = await fetch('/api/projects');
             if (!response.ok) {
                 throw new Error(t('api_error', { status: response.status }));
@@ -73,7 +84,10 @@ export class ProjectManager {
 
     // プロジェクトリストを更新
     updateProjectList() {
-        if (!this.projectListElement) return;
+        if (!this.projectListElement) {
+            console.warn('プロジェクトリスト要素が見つかりません');
+            return;
+        }
         
         // リストを空にする
         this.projectListElement.innerHTML = '';
@@ -117,6 +131,7 @@ export class ProjectManager {
     // 特定のプロジェクトを選択
     async selectProject(projectId) {
         try {
+            console.log(`プロジェクトを選択: ${projectId}`);
             const response = await fetch(`/api/projects/${projectId}`);
             if (!response.ok) {
                 throw new Error(t('api_error', { status: response.status }));
@@ -147,23 +162,33 @@ export class ProjectManager {
 
     // プロジェクト詳細表示を更新
     updateProjectDetails(project) {
-        if (!this.projectDetailsElement) return;
+        if (!this.projectDetailsElement) {
+            console.warn('プロジェクト詳細要素が見つかりません');
+            return;
+        }
         
         // プロジェクト名入力欄
         const nameInput = this.projectDetailsElement.querySelector('#project-name');
         if (nameInput) {
             nameInput.value = project.name;
+        } else {
+            console.warn('プロジェクト名入力欄が見つかりません');
         }
         
         // プロジェクト指示入力欄
         if (this.projectInstructionsElement) {
             this.projectInstructionsElement.value = project.instructions || '';
+        } else {
+            console.warn('プロジェクト指示入力欄が見つかりません');
         }
     }
 
     // セッションリストを更新
     updateSessionList(sessions) {
-        if (!this.sessionListElement) return;
+        if (!this.sessionListElement) {
+            console.warn('セッションリスト要素が見つかりません');
+            return;
+        }
         
         // リストを空にする
         this.sessionListElement.innerHTML = '';
@@ -206,20 +231,35 @@ export class ProjectManager {
 
     // 特定のセッションを選択
     async selectSession(sessionId) {
+        console.log(`セッションを選択: ${sessionId}`);
         this.currentSessionId = sessionId;
         
         // セッションリストの選択状態を更新
         const sessionItems = this.sessionListElement.querySelectorAll('.session-item');
         sessionItems.forEach(item => {
             item.classList.remove('selected');
-            if (item.querySelector('.session-title').textContent === sessionId) {
-                item.classList.add('selected');
+        });
+        
+        // 選択されたセッションにselectedクラスを追加
+        // セッションIDの比較は複雑になる可能性がある
+        // ここではtitleで検索する方法から、
+        // セッションIDを明示的に保存するアプローチに変更
+        const selectedItems = this.sessionListElement.querySelectorAll(`.session-item`);
+        selectedItems.forEach(item => {
+            if (item.querySelector && item.querySelector('.session-title')) {
+                const title = item.querySelector('.session-title').textContent;
+                const session = this.findSessionByTitle(title);
+                if (session && session.id === sessionId) {
+                    item.classList.add('selected');
+                }
             }
         });
         
         // 親コンポーネントにセッション選択を通知
         if (this.handleSessionSelect) {
             this.handleSessionSelect(sessionId);
+        } else {
+            console.warn('セッション選択ハンドラが設定されていません');
         }
         
         try {
@@ -235,12 +275,23 @@ export class ProjectManager {
         }
     }
 
+    // タイトルからセッションを検索するヘルパー関数
+    findSessionByTitle(title) {
+        if (!this.currentProjectId) return null;
+        
+        const project = this.projects.find(p => p.id === this.currentProjectId);
+        if (!project || !project.sessions) return null;
+        
+        return project.sessions.find(s => s.title === title);
+    }
+
     // 新規プロジェクト作成
     async createNewProject() {
         const projectName = prompt(t('enter_project_name'), t('new_project'));
         if (!projectName) return;
         
         try {
+            console.log(`新規プロジェクトを作成: ${projectName}`);
             const response = await fetch('/api/projects', {
                 method: 'POST',
                 headers: {
@@ -271,13 +322,17 @@ export class ProjectManager {
 
     // 現在のプロジェクトを保存
     async saveCurrentProject() {
-        if (!this.currentProjectId) return;
+        if (!this.currentProjectId) {
+            console.warn('現在のプロジェクトIDがありません');
+            return;
+        }
         
         const nameInput = this.projectDetailsElement.querySelector('#project-name');
         const name = nameInput ? nameInput.value : '';
         const instructions = this.projectInstructionsElement ? this.projectInstructionsElement.value : '';
         
         try {
+            console.log(`プロジェクトを保存: ${this.currentProjectId}`);
             const response = await fetch(`/api/projects/${this.currentProjectId}`, {
                 method: 'PUT',
                 headers: {
@@ -301,7 +356,9 @@ export class ProjectManager {
             
             // 少し経ったら消す
             setTimeout(() => {
-                document.body.removeChild(savedIndicator);
+                if (savedIndicator.parentNode === document.body) {
+                    document.body.removeChild(savedIndicator);
+                }
             }, 2000);
             
             // プロジェクト一覧を再読み込み
@@ -314,9 +371,13 @@ export class ProjectManager {
 
     // 新規セッション作成
     async createNewSession() {
-        if (!this.currentProjectId) return;
+        if (!this.currentProjectId) {
+            console.warn('プロジェクトが選択されていません');
+            return;
+        }
         
         try {
+            console.log(`新規セッションを作成: プロジェクト ${this.currentProjectId}`);
             const response = await fetch(`/api/projects/${this.currentProjectId}/sessions`, {
                 method: 'POST',
                 headers: {
