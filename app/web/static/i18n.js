@@ -3,7 +3,8 @@
 // 支持的语言
 export const SUPPORTED_LANGUAGES = {
     'zh-CN': '中文',
-    'en-US': 'English'
+    'en-US': 'English',
+    'ja-JP': '日本語'
 };
 
 // 翻译文本
@@ -108,6 +109,57 @@ export const translations = {
         // 语言切换
         'language': 'Language',
         'switch_language': 'Switch Language'
+    },
+
+    // 日本語翻訳
+    'ja-JP': {
+        // ページタイトルとヘッダー
+        'page_title': 'OpenManus Web - ウェブ版',
+        'app_title': 'OpenManus',
+        'app_subtitle': 'AIアシスタント - ウェブ版',
+        
+        // 主要エリアタイトル
+        'processing_progress': '処理の進捗',
+        'ai_thinking_process': 'AI思考プロセス',
+        'workspace_files': 'ワークスペースファイル',
+        'conversation': '会話',
+        
+        // ボタンとコントロール
+        'auto_scroll': '自動スクロール',
+        'clear': 'クリア',
+        'refresh': '更新',
+        'send': '送信',
+        'stop': '停止',
+        'close': '閉じる',
+        
+        // ステータスとヒント
+        'records_count': '{count} 件',
+        'refresh_countdown': '{seconds}秒後に更新',
+        'processing_request': 'リクエストを処理中...',
+        'processing_stopped': '処理が停止しました',
+        'file_name': 'ファイル名',
+        
+        // 入力欄プレースホルダー
+        'input_placeholder': '質問や指示を入力してください...',
+        
+        // フッター
+        'ui_made_by': 'UI制作:',
+        'powered_by': 'Powered by OpenManus -',
+        
+        // エラーメッセージ
+        'api_error': 'APIエラー: {status}',
+        'send_message_error': 'メッセージ送信エラー: {message}',
+        'stop_processing_error': '処理停止エラー: {message}',
+        'load_workspace_error': 'ワークスペースファイル読み込みエラー: {message}',
+        'load_file_error': 'ファイル内容読み込みエラー: {message}',
+        
+        // システムメッセージ
+        'error_occurred': 'エラーが発生しました: {message}',
+        'processing_in_progress': '処理中です。お待ちください...',
+        
+        // 言語切り替え
+        'language': '言語',
+        'switch_language': '言語を切り替える'
     }
 };
 
@@ -117,8 +169,14 @@ let currentLanguage = 'zh-CN';
 // 获取浏览器语言
 export function getBrowserLanguage() {
     const browserLang = navigator.language || navigator.userLanguage;
-    // 如果浏览器语言以'zh'开头，返回中文，否则返回英文
-    return browserLang.startsWith('zh') ? 'zh-CN' : 'en-US';
+    // 根据浏览器语言返回合适的界面语言
+    if (browserLang.startsWith('zh')) {
+        return 'zh-CN';
+    } else if (browserLang.startsWith('ja')) {
+        return 'ja-JP';
+    } else {
+        return 'en-US';
+    }
 }
 
 // 设置当前语言
