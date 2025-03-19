@@ -41,12 +41,18 @@ import app.web.database as db
 # MCP関連ツールのインポート
 from app.web.tools.routes import router as tools_router
 
+# ロギング設定ミドルウェアのインポート
+from app.web.logging_config import configure_app_logging, setup_logging
 
 # 控制是否自动打开浏览器 (读取环境变量，默认为True)
 AUTO_OPEN_BROWSER = os.environ.get("AUTO_OPEN_BROWSER", "1") == "1"
 last_opened = False  # 跟踪浏览器是否已打开
 
 app = FastAPI(title="OpenManus Web")
+
+# ロギング設定の初期化
+setup_logging()
+configure_app_logging(app, min_duration_ms=1000)  # 1秒以上かかるリクエストのみログに記録
 
 # ツールAPIルーターの登録
 app.include_router(tools_router)
