@@ -137,8 +137,19 @@ async def update_config(tool_name: str, request: ToolConfigUpdateRequest):
 
 
 @router.post("/verify/{tool_name}")
-async def verify_tool_config(tool_name: str):
-    """ツール設定の検証"""
+async def verify_tool_config_post(tool_name: str):
+    """ツール設定の検証（POSTメソッド）"""
+    return await _verify_tool_config(tool_name)
+
+
+@router.get("/verify/{tool_name}")
+async def verify_tool_config_get(tool_name: str):
+    """ツール設定の検証（GETメソッド）"""
+    return await _verify_tool_config(tool_name)
+
+
+async def _verify_tool_config(tool_name: str):
+    """ツール設定の検証実装（共通処理）"""
     logger.info(f"ツール設定検証リクエスト: {tool_name}")
     try:
         if tool_name == "github":
@@ -158,6 +169,28 @@ async def verify_tool_config(tool_name: str):
             }
             logger.info(f"設定検証レスポンス: 成功")
             return response
+        elif tool_name == "web_search":
+            # Web検索ツールの検証
+            from .web_search.client import WebSearchClient
+            client = WebSearchClient()
+            
+            # 簡単な検索クエリでテスト
+            test_result = await client.search("test", count=1)
+            
+            if test_result and "web" in test_result and "results" in test_result["web"]:
+                response = {
+                    "success": True,
+                    "message": "Web検索API設定の検証に成功しました",
+                }
+                logger.info(f"Web検索API設定検証: 成功")
+                return response
+            else:
+                response = {
+                    "success": False,
+                    "message": "Web検索API設定の検証に失敗しました"
+                }
+                logger.warning(f"Web検索API設定検証: 失敗")
+                return response
         else:
             response = {
                 "success": False,
