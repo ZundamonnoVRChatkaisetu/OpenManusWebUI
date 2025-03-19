@@ -1,10 +1,12 @@
 # Global LLM configuration
 [llm]
-model = "claude-3-5-sonnet"
-base_url = "https://api.openai.com/v1"
-api_key = "sk-..."
+model = "gpt-3.5-turbo" # LM Studioの場合、ローカルモデル名
+base_url = "http://localhost:1234/v1" # LMStudioのAPIエンドポイント
+api_key = "sk-no-key-required" # LM Studioの場合は任意の値
 max_tokens = 4096
 temperature = 0.0
+api_type = "openai" # LM Studioの場合はopenai
+api_version = "" # LM Studioの場合は空文字
 
 # [llm] #AZURE OPENAI:
 # api_type= 'azure'
@@ -17,6 +19,8 @@ temperature = 0.0
 
 # Optional configuration for specific LLM models
 [llm.vision]
-model = "claude-3-5-sonnet"
-base_url = "https://api.openai.com/v1"
-api_key = "sk-..."
+model = "gpt-4-vision-preview"
+base_url = "http://localhost:1234/v1"
+api_key = "sk-no-key-required"
+api_type = "openai"
+api_version = ""
