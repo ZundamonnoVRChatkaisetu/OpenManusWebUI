@@ -337,6 +337,21 @@ async def update_session_endpoint(session_id: str, session_update: SessionUpdate
     
     return updated_session
 
+@app.delete("/api/sessions/{session_id}")
+async def delete_session_endpoint(session_id: str):
+    """セッションを削除"""
+    session = db.get_session(session_id)
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="セッションが見つかりません")
+    
+    success = db.delete_session(session_id)
+    
+    if not success:
+        raise HTTPException(status_code=500, detail="セッション削除に失敗しました")
+    
+    return {"success": True}
+
 @app.post("/api/chat")
 async def create_chat_session(
     chat_req: ChatRequest, background_tasks: BackgroundTasks
