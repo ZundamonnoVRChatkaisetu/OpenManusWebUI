@@ -1,4 +1,4 @@
- // connected_chatManager.js - 处理聊天界面和消息
+// connected_chatManager.js - 处理聊天界面和消息
 
 export class ChatManager {
     constructor(sendMessageCallback) {
@@ -45,30 +45,62 @@ export class ChatManager {
     }
 
     // 添加用户消息
-    addUserMessage(message) {
+    addUserMessage(message, scrollToBottom = true) {
         const messageElement = this.createMessageElement('user-message', message);
         this.chatContainer.appendChild(messageElement);
-        this.scrollToBottom();
+        if (scrollToBottom) {
+            this.scrollToBottom();
+        }
     }
 
     // 添加AI消息
-    addAIMessage(message) {
+    addAIMessage(message, scrollToBottom = true) {
         const messageElement = this.createMessageElement('ai-message', message);
         this.chatContainer.appendChild(messageElement);
-        this.scrollToBottom();
+        if (scrollToBottom) {
+            this.scrollToBottom();
+        }
     }
 
     // 添加系统消息
-    addSystemMessage(message) {
+    addSystemMessage(message, scrollToBottom = true) {
         const messageElement = this.createMessageElement('system-message', message);
         this.chatContainer.appendChild(messageElement);
-        this.scrollToBottom();
+        if (scrollToBottom) {
+            this.scrollToBottom();
+        }
     }
 
     // 创建消息元素
     createMessageElement(className, content) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${className}`;
+
+        // メッセージヘッダーを追加（Claudeライク）
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'message-header';
+        
+        // アバターとユーザー名
+        const avatar = document.createElement('span');
+        avatar.className = 'avatar';
+        
+        const sender = document.createElement('span');
+        sender.className = 'sender';
+        
+        if (className === 'user-message') {
+            avatar.textContent = '👤';
+            sender.textContent = 'You';
+        } else if (className === 'ai-message') {
+            avatar.textContent = '🤖';
+            sender.textContent = 'Assistant';
+        } else {
+            avatar.textContent = '🔔';
+            sender.textContent = 'System';
+        }
+        
+        headerDiv.appendChild(avatar);
+        headerDiv.appendChild(sender);
+        messageDiv.appendChild(headerDiv);
 
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content';
@@ -123,5 +155,30 @@ export class ChatManager {
     adjustTextareaHeight() {
         this.userInput.style.height = 'auto';
         this.userInput.style.height = (this.userInput.scrollHeight) + 'px';
+    }
+    
+    // チャット履歴の表示
+    displayChatHistory(messages) {
+        // チャットコンテナをクリア
+        this.clearMessages();
+        
+        // メッセージを時系列順にソート
+        const sortedMessages = [...messages].sort((a, b) => {
+            return new Date(a.created_at) - new Date(b.created_at);
+        });
+        
+        // 各メッセージを表示
+        sortedMessages.forEach(message => {
+            if (message.role === 'user') {
+                this.addUserMessage(message.content, false);
+            } else if (message.role === 'assistant') {
+                this.addAIMessage(message.content, false);
+            } else if (message.role === 'system') {
+                this.addSystemMessage(message.content, false);
+            }
+        });
+        
+        // 最後までスクロール
+        this.scrollToBottom();
     }
 }
