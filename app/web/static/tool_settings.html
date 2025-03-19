@@ -37,6 +37,18 @@
         .nav-tabs {
             margin-bottom: 20px;
         }
+        .debug-panel {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            display: none; /* デフォルトでは非表示 */
+        }
     </style>
 </head>
 <body>
@@ -117,6 +129,15 @@
                                 </form>
                             </div>
                         </div>
+                        
+                        <!-- デバッグパネル -->
+                        <div class="debug-panel" id="debugPanel">
+                            <h5>デバッグ情報</h5>
+                            <pre id="debugLog"></pre>
+                        </div>
+                        
+                        <!-- デバッグモード切り替えボタン -->
+                        <button class="btn btn-outline-secondary btn-sm mt-3 float-end" id="toggleDebugMode">デバッグモード</button>
                     </div>
                 </div>
             </div>
@@ -147,34 +168,96 @@
     <!-- Web検索設定用スクリプト -->
     <script src="/static/js/tools/web_search_settings.js"></script>
     <script>
+        // デバッグログ関数
+        function debugLog(message, data) {
+            const debugPanel = document.getElementById('debugPanel');
+            const debugLog = document.getElementById('debugLog');
+            
+            // ログメッセージの作成
+            let logMessage = `[${new Date().toISOString()}] ${message}`;
+            if (data !== undefined) {
+                if (typeof data === 'object') {
+                    logMessage += '\n' + JSON.stringify(data, null, 2);
+                } else {
+                    logMessage += ': ' + data;
+                }
+            }
+            
+            // ログに追加
+            debugLog.textContent = logMessage + '\n\n' + debugLog.textContent;
+        }
+        
+        // デバッグモード切り替え
+        document.getElementById('toggleDebugMode').addEventListener('click', function() {
+            const debugPanel = document.getElementById('debugPanel');
+            if (debugPanel.style.display === 'none' || debugPanel.style.display === '') {
+                debugPanel.style.display = 'block';
+                this.textContent = 'デバッグモード (オン)';
+                debugLog('デバッグモードが有効になりました');
+            } else {
+                debugPanel.style.display = 'none';
+                this.textContent = 'デバッグモード';
+            }
+        });
+        
         // 設定の読み込みと保存
         document.addEventListener('DOMContentLoaded', function() {
             // GitHub設定の読み込み
+            debugLog('GitHub設定の読み込みを開始');
             fetch('/api/tools/config/github')
-                .then(response => response.json())
+                .then(response => {
+                    debugLog('GitHub設定APIレスポンス', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTPエラー: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    debugLog('GitHub設定データを受信', data);
                     if (data && data.config) {
-                        document.getElementById('github_access_token').value = data.config.access_token || '';
-                        document.getElementById('github_username').value = data.config.username || '';
+                        const accessToken = data.config.access_token || '';
+                        const username = data.config.username || '';
+                        
+                        document.getElementById('github_access_token').value = accessToken;
+                        document.getElementById('github_username').value = username;
+                        
+                        debugLog('GitHub設定を入力欄に設定', { 
+                            accessToken: accessToken ? '設定済み' : '未設定', 
+                            username: username ? username : '未設定' 
+                        });
                     } else {
-                        console.error('GitHub設定データが不正な形式です:', data);
+                        debugLog('GitHub設定データがない、または不正な形式', data);
                     }
                 })
                 .catch(error => {
+                    debugLog('GitHub設定の読み込みエラー', error.message);
                     console.error('GitHub設定の読み込みエラー:', error);
                 });
             
             // Web検索設定の読み込み
+            debugLog('Web検索設定の読み込みを開始');
             fetch('/api/tools/config/web_search')
-                .then(response => response.json())
+                .then(response => {
+                    debugLog('Web検索設定APIレスポンス', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTPエラー: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    debugLog('Web検索設定データを受信', data);
                     if (data && data.config) {
-                        document.getElementById('web_search_api_key').value = data.config.api_key || '';
+                        const apiKey = data.config.api_key || '';
+                        document.getElementById('web_search_api_key').value = apiKey;
+                        debugLog('Web検索APIキーを入力欄に設定', { 
+                            apiKey: apiKey ? '設定済み' : '未設定'
+                        });
                     } else {
-                        console.error('Web検索設定データが不正な形式です:', data);
+                        debugLog('Web検索設定データがない、または不正な形式', data);
                     }
                 })
                 .catch(error => {
+                    debugLog('Web検索設定の読み込みエラー', error.message);
                     console.error('Web検索設定の読み込みエラー:', error);
                 });
             
@@ -196,9 +279,17 @@
             document.getElementById('githubSettingsForm').addEventListener('submit', function(e) {
                 e.preventDefault();
                 
+                const accessToken = document.getElementById('github_access_token').value;
+                const username = document.getElementById('github_username').value;
+                
+                debugLog('GitHub設定の保存', { 
+                    accessToken: accessToken ? '設定あり' : '未設定', 
+                    username: username 
+                });
+                
                 const config = {
-                    access_token: document.getElementById('github_access_token').value,
-                    username: document.getElementById('github_username').value
+                    access_token: accessToken,
+                    username: username
                 };
                 
                 saveConfig('github', config, 'githubStatusMessage');
@@ -208,8 +299,14 @@
             document.getElementById('webSearchSettingsForm').addEventListener('submit', function(e) {
                 e.preventDefault();
                 
+                const apiKey = document.getElementById('web_search_api_key').value;
+                
+                debugLog('Web検索設定の保存', { 
+                    apiKey: apiKey ? '設定あり' : '未設定'
+                });
+                
                 const config = {
-                    api_key: document.getElementById('web_search_api_key').value
+                    api_key: apiKey
                 };
                 
                 saveConfig('web_search', config, 'webSearchStatusMessage');
@@ -244,9 +341,18 @@
                 const statusElement = document.getElementById('githubStatusMessage');
                 statusElement.innerHTML = '<div class="alert alert-info">接続テスト中...</div>';
                 
+                debugLog('GitHub接続テスト実行');
+                
                 fetch('/api/tools/verify/github')
-                    .then(response => response.json())
+                    .then(response => {
+                        debugLog('GitHub検証APIレスポンス', response.status);
+                        if (!response.ok) {
+                            throw new Error(`HTTPエラー: ${response.status}`);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
+                        debugLog('GitHub検証結果', data);
                         if (data.success) {
                             statusElement.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
                         } else {
@@ -254,6 +360,7 @@
                         }
                     })
                     .catch(error => {
+                        debugLog('GitHub検証エラー', error.message);
                         console.error('GitHub設定の検証エラー:', error);
                         statusElement.innerHTML = '<div class="alert alert-danger">接続テストに失敗しました</div>';
                     });
@@ -265,6 +372,8 @@
             const statusElement = document.getElementById(statusElementId);
             statusElement.innerHTML = '<div class="alert alert-info">保存中...</div>';
             
+            debugLog(`${toolName}設定の保存リクエスト`, config);
+            
             fetch(`/api/tools/config/${toolName}`, {
                 method: 'PUT',
                 headers: {
@@ -272,8 +381,15 @@
                 },
                 body: JSON.stringify({ config: config })
             })
-                .then(response => response.json())
+                .then(response => {
+                    debugLog(`${toolName}設定保存APIレスポンス`, response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTPエラー: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    debugLog(`${toolName}設定保存結果`, data);
                     if (data.success) {
                         statusElement.innerHTML = '<div class="alert alert-success">設定を保存しました</div>';
                     } else {
@@ -281,6 +397,7 @@
                     }
                 })
                 .catch(error => {
+                    debugLog(`${toolName}設定保存エラー`, error.message);
                     console.error(`${toolName}設定の保存エラー:`, error);
                     statusElement.innerHTML = '<div class="alert alert-danger">保存中にエラーが発生しました</div>';
                 });
