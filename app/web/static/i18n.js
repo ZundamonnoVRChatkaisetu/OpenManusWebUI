@@ -21,6 +21,10 @@ export const translations = {
         'ai_thinking_process': 'AI思考过程',
         'workspace_files': '工作区文件',
         'conversation': '对话',
+        'projects': '项目',
+        'sessions': '会话',
+        'project_details': '项目详情',
+        'project_instructions': '项目指示',
         
         // 按钮和控件
         'auto_scroll': '自动滚动',
@@ -29,6 +33,9 @@ export const translations = {
         'send': '发送',
         'stop': '停止',
         'close': '关闭',
+        'new_project': '新建项目',
+        'save_project': '保存项目',
+        'new_session': '新建会话',
         
         // 状态和提示
         'records_count': '{count} 条记录',
@@ -36,9 +43,17 @@ export const translations = {
         'processing_request': '正在处理您的请求...',
         'processing_stopped': '处理已停止',
         'file_name': '文件名',
+        'no_projects': '暂无项目',
+        'no_sessions': '暂无会话',
+        'untitled_project': '未命名项目',
+        'untitled_session': '未命名会话',
+        'enter_project_name': '请输入项目名称',
+        'project_saved': '项目已保存',
         
         // 输入框占位符
         'input_placeholder': '输入您的问题或指令...',
+        'project_name_placeholder': '项目名称',
+        'project_instructions_placeholder': '输入项目指示...',
         
         // 页脚
         'ui_made_by': 'Web界面制作:',
@@ -50,6 +65,9 @@ export const translations = {
         'stop_processing_error': '停止处理错误: {message}',
         'load_workspace_error': '加载工作区文件错误: {message}',
         'load_file_error': '加载文件内容错误: {message}',
+        'project_create_failed': '创建项目失败',
+        'project_save_failed': '保存项目失败',
+        'session_create_failed': '创建会话失败',
         
         // 系统消息
         'error_occurred': '发生错误: {message}',
@@ -84,6 +102,10 @@ export const translations = {
         'ai_thinking_process': 'AI Thinking Process',
         'workspace_files': 'Workspace Files',
         'conversation': 'Conversation',
+        'projects': 'Projects',
+        'sessions': 'Sessions',
+        'project_details': 'Project Details',
+        'project_instructions': 'Project Instructions',
         
         // 按钮和控件
         'auto_scroll': 'Auto Scroll',
@@ -92,6 +114,9 @@ export const translations = {
         'send': 'Send',
         'stop': 'Stop',
         'close': 'Close',
+        'new_project': 'New Project',
+        'save_project': 'Save Project',
+        'new_session': 'New Session',
         
         // 状态和提示
         'records_count': '{count} Records',
@@ -99,9 +124,17 @@ export const translations = {
         'processing_request': 'Processing your request...',
         'processing_stopped': 'Processing stopped',
         'file_name': 'File Name',
+        'no_projects': 'No projects',
+        'no_sessions': 'No sessions',
+        'untitled_project': 'Untitled Project',
+        'untitled_session': 'Untitled Session',
+        'enter_project_name': 'Enter project name',
+        'project_saved': 'Project saved',
         
         // 输入框占位符
         'input_placeholder': 'Enter your question or instruction...',
+        'project_name_placeholder': 'Project name',
+        'project_instructions_placeholder': 'Enter project instructions...',
         
         // 页脚
         'ui_made_by': 'UI Made by:',
@@ -113,6 +146,9 @@ export const translations = {
         'stop_processing_error': 'Stop processing error: {message}',
         'load_workspace_error': 'Load workspace files error: {message}',
         'load_file_error': 'Load file content error: {message}',
+        'project_create_failed': 'Failed to create project',
+        'project_save_failed': 'Failed to save project',
+        'session_create_failed': 'Failed to create session',
         
         // 系统消息
         'error_occurred': 'Error occurred: {message}',
@@ -147,6 +183,10 @@ export const translations = {
         'ai_thinking_process': 'AI思考プロセス',
         'workspace_files': 'ワークスペースファイル',
         'conversation': '会話',
+        'projects': 'プロジェクト',
+        'sessions': 'セッション',
+        'project_details': 'プロジェクト詳細',
+        'project_instructions': 'プロジェクト指示',
         
         // ボタンとコントロール
         'auto_scroll': '自動スクロール',
@@ -155,6 +195,9 @@ export const translations = {
         'send': '送信',
         'stop': '停止',
         'close': '閉じる',
+        'new_project': '新規プロジェクト',
+        'save_project': '保存',
+        'new_session': '新規セッション',
         
         // ステータスとヒント
         'records_count': '{count} 件',
@@ -162,9 +205,17 @@ export const translations = {
         'processing_request': 'リクエストを処理中...',
         'processing_stopped': '処理が停止しました',
         'file_name': 'ファイル名',
+        'no_projects': 'プロジェクトがありません',
+        'no_sessions': 'セッションがありません',
+        'untitled_project': '無題のプロジェクト',
+        'untitled_session': '無題のセッション',
+        'enter_project_name': 'プロジェクト名を入力',
+        'project_saved': '保存しました',
         
         // 入力欄プレースホルダー
         'input_placeholder': '質問や指示を入力してください...',
+        'project_name_placeholder': 'プロジェクト名',
+        'project_instructions_placeholder': 'プロジェクト指示を入力...',
         
         // フッター
         'ui_made_by': 'UI制作:',
@@ -176,6 +227,9 @@ export const translations = {
         'stop_processing_error': '処理停止エラー: {message}',
         'load_workspace_error': 'ワークスペースファイル読み込みエラー: {message}',
         'load_file_error': 'ファイル内容読み込みエラー: {message}',
+        'project_create_failed': 'プロジェクト作成に失敗しました',
+        'project_save_failed': 'プロジェクト保存に失敗しました',
+        'session_create_failed': 'セッション作成に失敗しました',
         
         // システムメッセージ
         'error_occurred': 'エラーが発生しました: {message}',
