@@ -57,7 +57,19 @@ export const translations = {
         
         // 语言切换
         'language': '语言',
-        'switch_language': '切换语言'
+        'switch_language': '切换语言',
+
+        // WebSocket状态消息
+        'connection_established': '已连接到服务器...',
+        'connection_failed': '连接已断开，请刷新页面重试',
+        'reconnecting': '连接已断开，正在尝试重连 ({current}/{max})...',
+
+        // 工作区文件消息
+        'no_workspace_files': '没有工作区文件',
+        'refreshing': '刷新中...',
+
+        // 发送状态
+        'sent_to_server': '已送接到服务器...'
     },
     
     // 英文翻译
@@ -108,7 +120,19 @@ export const translations = {
         
         // 语言切换
         'language': 'Language',
-        'switch_language': 'Switch Language'
+        'switch_language': 'Switch Language',
+
+        // WebSocket状态消息
+        'connection_established': 'Connected to server...',
+        'connection_failed': 'Connection lost, please refresh the page',
+        'reconnecting': 'Connection lost, trying to reconnect ({current}/{max})...',
+
+        // 工作区文件消息
+        'no_workspace_files': 'No workspace files',
+        'refreshing': 'Refreshing...',
+
+        // 发送状态
+        'sent_to_server': 'Sent to server...'
     },
 
     // 日本語翻訳
@@ -159,7 +183,19 @@ export const translations = {
         
         // 言語切り替え
         'language': '言語',
-        'switch_language': '言語を切り替える'
+        'switch_language': '言語を切り替える',
+
+        // WebSocketステータスメッセージ
+        'connection_established': 'サーバーに接続しました...',
+        'connection_failed': '接続が切断されました。ページを更新してください',
+        'reconnecting': '接続が切断されました。再接続を試みています ({current}/{max})...',
+
+        // ワークスペースファイルメッセージ
+        'no_workspace_files': 'ワークスペースファイルなし',
+        'refreshing': '更新中...',
+
+        // 送信状態
+        'sent_to_server': 'サーバーに送信済み...'
     }
 };
 
