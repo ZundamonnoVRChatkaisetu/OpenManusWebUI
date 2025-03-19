@@ -1,219 +1,215 @@
-English | [中文](README_zh.md)
+# OpenManus Web UI
 
-[![GitHub stars](https://img.shields.io/github/stars/mannaandpoem/OpenManus?style=social)](https://github.com/gregpr07/browser-use/stargazers) &ensp;
-[![Twitter Follow](https://img.shields.io/twitter/follow/openmanus?style=social)](https://twitter.com/openmanus) &ensp;
-[![Discord Follow](https://dcbadge.vercel.app/api/server/https://discord.gg/6dn7Sa3a?style=flat)](https://discord.gg/6dn7Sa3a) &ensp;
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-# 👋 OpenManus
+## 概要
 
-Manus is incredible, but OpenManus can achieve any idea without an *Invite Code* 🛫!
+OpenManus Web UIは、高度なAIアシスタント機能を備えたウェブインターフェースです。プロジェクト管理機能とチャットセッション機能を組み合わせることで、複数の会話や作業を効率的に管理できます。
 
-Our team
-members [@mannaandpoem](https://github.com/mannaandpoem) [@XiangJinyu](https://github.com/XiangJinyu) [@MoshiQAQ](https://github.com/MoshiQAQ) [@didiforgithub](https://github.com/didiforgithub) [@stellaHSR](https://github.com/stellaHSR)
-and [@Xinyu Zhang](https://x.com/xinyzng), we are from [@MetaGPT](https://github.com/geekan/MetaGPT) etc. The prototype
-is launched within 3 hours and we are keeping building!
+## 機能一覧
 
-It's a simple implementation, so we welcome any suggestions, contributions, and feedback!
+- 📁 **プロジェクト管理**: 複数のプロジェクトを作成・管理
+- 💬 **セッション管理**: プロジェクトごとに複数のチャットセッションを作成
+- 📝 **プロジェクト指示**: プロジェクトごとに指示を保存し、AIの動作をカスタマイズ
+- 📊 **リアルタイム思考プロセス**: AIの思考過程をリアルタイムで確認
+- 📂 **ワークスペース管理**: プロジェクトごとに生成されたファイルを整理
+- 🌏 **多言語対応**: 日本語、英語、中国語に対応
+- 🔄 **LMStudio連携**: ローカルLLMサーバーを自動起動
 
-Enjoy your own agent with OpenManus!
+## インストール方法
 
-We're also excited to introduce [OpenManus-RL](https://github.com/OpenManus/OpenManus-RL), an open-source project dedicated to reinforcement learning (RL)- based (such as GRPO) tuning methods for LLM agents, developed collaboratively by researchers from UIUC and OpenManus.
+以下の2つのインストール方法を提供しています。依存関係の管理の観点から、方法2（uvを使用）を推奨します。
 
-## Web Interface Preview
+### 方法1: condaを使用
 
-![OpenManus Web Interface](assets/interface.png)
-
-The web interface is developed by [@YunQiAI](https://github.com/YunQiAI).
-For more information, please refer to [app/web/README.md](app/web/README.md).
-
-## Project Demo
-
-<video src="https://private-user-images.githubusercontent.com/61239030/420168772-6dcfd0d2-9142-45d9-b74e-d10aa75073c6.mp4?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NDEzMTgwNTksIm5iZiI6MTc0MTMxNzc1OSwicGF0aCI6Ii82MTIzOTAzMC80MjAxNjg3NzItNmRjZmQwZDItOTE0Mi00NWQ5LWI3NGUtZDEwYWE3NTA3M2M2Lm1wND9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTAzMDclMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUwMzA3VDAzMjIzOVomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTdiZjFkNjlmYWNjMmEzOTliM2Y3M2VlYjgyNDRlZDJmOWE3NWZhZjE1MzhiZWY4YmQ3NjdkNTYwYTU5ZDA2MzYmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.UuHQCgWYkh0OQq9qsUWqGsUbhG3i9jcZDAMeHjLt5T4" data-canonical-src="https://private-user-images.githubusercontent.com/61239030/420168772-6dcfd0d2-9142-45d9-b74e-d10aa75073c6.mp4?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NDEzMTgwNTksIm5iZiI6MTc0MTMxNzc1OSwicGF0aCI6Ii82MTIzOTAzMC80MjAxNjg3NzItNmRjZmQwZDItOTE0Mi00NWQ5LWI3NGUtZDEwYWE3NTA3M2M2Lm1wND9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTAzMDclMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUwMzA3VDAzMjIzOVomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTdiZjFkNjlmYWNjMmEzOTliM2Y3M2VlYjgyNDRlZDJmOWE3NWZhZjE1MzhiZWY4YmQ3NjdkNTYwYTU5ZDA2MzYmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.UuHQCgWYkh0OQq9qsUWqGsUbhG3i9jcZDAMeHjLt5T4" controls="controls" muted="muted" class="d-block rounded-bottom-2 border-top width-fit" style="max-height:640px; min-height: 200px"></video>
-
-## Installation
-
-We provide two installation methods. Method 2 (using uv) is recommended for faster installation and better dependency management.
-
-### Method 1: Using conda
-
-1. Create a new conda environment:
+1. 新しいconda環境を作成:
 
 ```bash
 conda create -n open_manus python=3.12
 conda activate open_manus
 ```
 
-2. Clone the repository:
+2. リポジトリをクローン:
 
 ```bash
-git clone https://github.com/mannaandpoem/OpenManus.git
-cd OpenManus
+git clone https://github.com/ZundamonnoVRChatkaisetu/OpenManusWebUI.git
+cd OpenManusWebUI
 ```
 
-3. Install dependencies:
+3. 依存ライブラリをインストール:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### Method 2: Using uv (Recommended)
+### 方法2: uvを使用（推奨）
 
-1. Install uv (A fast Python package installer and resolver):
+1. uv（高速Pythonパッケージインストーラー）をインストール:
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-2. Clone the repository:
+2. リポジトリをクローン:
 
 ```bash
-git clone https://github.com/mannaandpoem/OpenManus.git
-cd OpenManus
+git clone https://github.com/ZundamonnoVRChatkaisetu/OpenManusWebUI.git
+cd OpenManusWebUI
 ```
 
-3. Create a new virtual environment and activate it:
+3. 仮想環境を作成してアクティブ化:
 
 ```bash
 uv venv
-source .venv/bin/activate  # On Unix/macOS
-# Or on Windows:
+source .venv/bin/activate  # Unix/macOS
+# または Windows:
 # .venv\Scripts\activate
 ```
 
-4. Install dependencies:
+4. 依存ライブラリをインストール:
 
 ```bash
 uv pip install -r requirements.txt
 ```
 
-## Configuration
+## 設定
 
-OpenManus requires configuration for the LLM APIs it uses. Follow these steps to set up your configuration:
+OpenManusはLLM APIの設定が必要です。以下の手順で設定してください:
 
-1. Create a `config.toml` file in the `config` directory (you can copy from the example):
+1. `config`ディレクトリに`config.toml`ファイルを作成（サンプルからコピー可能）:
 
 ```bash
 cp config/config.example.toml config/config.toml
 ```
 
-2. Edit `config/config.toml` to add your API keys and customize settings:
+2. `config/config.toml`を編集してAPIキーを追加し設定をカスタマイズ:
 
 ```toml
-# Global LLM configuration
+# グローバルLLM設定
 [llm]
 model = "gpt-4o"
 base_url = "https://api.openai.com/v1"
-api_key = "sk-..."  # Replace with your actual API key
+api_key = "sk-..."  # 実際のAPIキーに置き換え
 max_tokens = 4096
 temperature = 0.0
 
-# Optional configuration for specific LLM models
+# 特定のLLMモデル向けのオプション設定
 [llm.vision]
 model = "gpt-4o"
 base_url = "https://api.openai.com/v1"
-api_key = "sk-..."  # Replace with your actual API key
+api_key = "sk-..."  # 実際のAPIキーに置き換え
 ```
 
-## Quick Start
+## クイックスタート
 
-One line for run OpenManus:
+OpenManusを起動する一番簡単な方法:
 
-```bash
-python main.py --web
-```
-
-Then input your idea via terminal!
-
-### Web Interface
-
-You can use OpenManus through a user-friendly web interface:
-
-```bash
-uvicorn app.web.app:app --reload
-```
-or
 ```bash
 python web_run.py
 ```
 
-Then open your browser and navigate to `http://localhost:8000` to access the web interface. The web UI allows you to:
+これでブラウザが自動的に開き、`http://localhost:8000`でWeb UIにアクセスできます。
 
-- Interact with OpenManus using a chat-like interface
-- Monitor AI thinking process in real-time
-- View and access workspace files
-- See execution progress visually
+## Web UIの起動オプション
 
-For unstable version, you also can run:
+いくつかの起動オプションを用意しています:
 
 ```bash
-python run_flow.py
+# 基本的な起動方法
+python web_run.py
+
+# ブラウザを自動で開かない
+python web_run.py --no-browser
+
+# ポート番号を変更する
+python web_run.py --port 3000
 ```
 
-### LM Studio Integration
+## LMStudio連携機能
 
-The web interface now includes an option to automatically start LM Studio's API server. This allows you to use local language models without having to manually start and configure LM Studio:
+OpenManus Web UIは、LMStudioのAPIサーバーを自動的に起動することができるようになりました。これにより、ローカルの言語モデルを手動でLMStudioを起動・設定することなく利用できます:
 
 ```bash
+# LMStudioサーバーを同時に起動
 python web_run.py --lmstudio
 ```
 
-Additional options for LM Studio integration:
+LMStudio連携のその他のオプション:
 
 ```bash
-# Specify a custom port for LM Studio's server (default: 1234)
+# LMStudioのサーバーポートを指定（デフォルト: 1234）
 python web_run.py --lmstudio --lm-port 8080
 
-# Launch LM Studio with GUI mode instead of headless mode
+# ヘッドレスモードではなくGUIモードでLMStudioを起動
 python web_run.py --lmstudio --lm-gui
 
-# Combined with other OpenManus web options
+# 他のOpenManus Webオプションと組み合わせて使用
 python web_run.py --lmstudio --port 3000 --no-browser
 ```
 
-This feature automatically:
-- Locates LM Studio on your computer
-- Starts the API server
-- Configures the correct port
-- Ensures clean shutdown when you close OpenManus
+この機能は自動的に:
+- お使いのコンピューター上のLMStudioを検索
+- APIサーバーを起動
+- 適切なポートを設定
+- OpenManusを終了する際にLMStudioも正しく終了
 
-**Note**: You need to have LM Studio installed on your computer. The feature will automatically search for LM Studio in common installation locations on Windows, macOS, and Linux.
+**注意**: この機能を使用するには、LMStudioがコンピューターにインストールされている必要があります。WindowsやmacOS、Linuxの一般的なインストール場所をシステムが自動的に検索します。
 
-## How to contribute
+## プロジェクト管理機能
 
-We welcome any friendly suggestions and helpful contributions! Just create issues or submit pull requests.
+OpenManus Web UIは、プロジェクトベースのワークフローをサポートしています:
 
-Or contact @mannaandpoem via 📧email: mannaandpoem@gmail.com
+1. **プロジェクト作成**: 異なる目的や作業ごとにプロジェクトを作成できます
+2. **プロジェクト指示**: 各プロジェクトに固有の指示を設定し、AIの動作をカスタマイズできます
+3. **セッション管理**: 各プロジェクト内で複数のチャットセッションを作成できます
+4. **ワークスペース分離**: プロジェクトごとに独立したファイル保存領域を持ちます
 
-## Roadmap
+## インターフェース概要
 
-After comprehensively gathering feedback from community members, we have decided to adopt a 3-4 day iteration cycle to gradually implement the highly anticipated features.
+Web UIは次の主要セクションで構成されています:
 
-- [ ] Enhance Planning capabilities, optimize task breakdown and execution logic
-- [ ] Introduce standardized evaluation metrics (based on GAIA and TAU-Bench) for continuous performance assessment and optimization
-- [ ] Expand model adaptation and optimize low-cost application scenarios
-- [ ] Implement containerized deployment to simplify installation and usage workflows
-- [ ] Enrich example libraries with more practical cases, including analysis of both successful and failed examples
-- [ ] Frontend/backend development to improve user experience
+- **プロジェクトリスト**: 作成済みのプロジェクトを表示・選択できます
+- **セッションリスト**: 現在のプロジェクト内のセッションを表示・選択できます
+- **プロジェクト詳細**: プロジェクト名や指示を編集できます
+- **AI思考プロセス**: AIが考えている内容をリアルタイムで表示します
+- **ワークスペースファイル**: 生成されたファイルを表示・閲覧できます
+- **チャットインターフェース**: AIとの対話を行うメインエリアです
 
-## Community Group
-Join our discord group
+## 機能の使い方
 
-[![Discord Follow](https://dcbadge.vercel.app/api/server/https://discord.gg/jkT5udP9bw?style=flat)](https://discord.gg/jkT5udP9bw) &ensp;
+### プロジェクト管理
 
-Join our networking group on Feishu and share your experience with other developers!
+- **新規プロジェクト作成**: 「新規」ボタンをクリックしてプロジェクト名を入力
+- **プロジェクト指示の設定**: プロジェクト詳細パネルで指示を入力し「保存」をクリック
+- **プロジェクト名変更**: 「名前変更」ボタンをクリックして新しい名前を入力
+- **プロジェクト削除**: 「削除」ボタンをクリックして確認
 
-<div align="center" style="display: flex; gap: 20px;">
-    <img src="assets/community_group.jpg" alt="OpenManus 交流群" width="300" />
-</div>
+### セッション管理
 
-## Star History
+- **新規セッション作成**: 「新規」ボタンをクリックして新しいセッションを開始
+- **セッション切替**: セッションリストから選択してセッションを切り替え
+- **セッション名変更**: 「名前変更」ボタンをクリックして新しい名前を入力
+- **セッション削除**: 「削除」ボタンをクリックして確認
 
-[![Star History Chart](https://api.star-history.com/svg?repos=mannaandpoem/OpenManus&type=Date)](https://star-history.com/#mannaandpoem/OpenManus&Date)
+### チャット機能
 
-## Acknowledgement
+- **メッセージ送信**: テキストエリアに入力して「送信」ボタンをクリック
+- **処理停止**: 長時間の処理を「停止」ボタンで中断
+- **履歴クリア**: 「クリア」ボタンでチャット履歴をリセット
 
-Thanks to [anthropic-computer-use](https://github.com/anthropics/anthropic-quickstarts/tree/main/computer-use-demo)
-and [browser-use](https://github.com/browser-use/browser-use) for providing basic support for this project!
+## 開発者向け情報
 
-OpenManus is built by contributors from MetaGPT. Huge thanks to this agent community!
+このプロジェクトは以下の技術を使用しています:
+
+- **バックエンド**: FastAPI, Python
+- **フロントエンド**: JavaScript (ES6 Modules), HTML, CSS
+- **データベース**: SQLite
+- **その他**: WebSocket, TOML設定
+
+## ライセンス
+
+このプロジェクトはMITライセンスの下で公開されています。詳細は[LICENSE](LICENSE)ファイルを参照してください。
+
+## 謝辞
+
+このプロジェクトは[OpenManus](https://github.com/mannaandpoem/OpenManus)をベースに拡張されています。また、Web UIの開発には[@YunQiAI](https://github.com/YunQiAI)氏の貢献が含まれています。
