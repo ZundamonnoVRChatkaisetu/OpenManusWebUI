@@ -33,9 +33,13 @@ export const translations = {
         'send': '发送',
         'stop': '停止',
         'close': '关闭',
-        'new_project': '新建项目',
-        'save_project': '保存项目',
-        'new_session': '新建会话',
+        'new_project': '新建',
+        'save_project': '保存',
+        'new_session': '新建',
+        'delete_project': '删除',
+        'rename_project': '重命名',
+        'delete_session': '删除',
+        'rename_session': '重命名',
         
         // 状态和提示
         'records_count': '{count} 条记录',
@@ -49,6 +53,14 @@ export const translations = {
         'untitled_session': '未命名会话',
         'enter_project_name': '请输入项目名称',
         'project_saved': '项目已保存',
+        'project_deleted': '项目已删除',
+        'project_renamed': '项目已重命名',
+        'session_deleted': '会话已删除',
+        'session_renamed': '会话已重命名',
+        'confirm_delete_project': '确定要删除此项目吗？该操作不可撤销。',
+        'confirm_delete_session': '确定要删除此会话吗？该操作不可撤销。',
+        'enter_new_project_name': '请输入新的项目名称',
+        'enter_new_session_name': '请输入新的会话名称',
         
         // 输入框占位符
         'input_placeholder': '输入您的问题或指令...',
@@ -68,6 +80,10 @@ export const translations = {
         'project_create_failed': '创建项目失败',
         'project_save_failed': '保存项目失败',
         'session_create_failed': '创建会话失败',
+        'project_delete_failed': '删除项目失败',
+        'project_rename_failed': '重命名项目失败',
+        'session_delete_failed': '删除会话失败',
+        'session_rename_failed': '重命名会话失败',
         
         // 系统消息
         'error_occurred': '发生错误: {message}',
@@ -114,9 +130,13 @@ export const translations = {
         'send': 'Send',
         'stop': 'Stop',
         'close': 'Close',
-        'new_project': 'New Project',
-        'save_project': 'Save Project',
-        'new_session': 'New Session',
+        'new_project': 'New',
+        'save_project': 'Save',
+        'new_session': 'New',
+        'delete_project': 'Delete',
+        'rename_project': 'Rename',
+        'delete_session': 'Delete',
+        'rename_session': 'Rename',
         
         // 状态和提示
         'records_count': '{count} Records',
@@ -130,6 +150,14 @@ export const translations = {
         'untitled_session': 'Untitled Session',
         'enter_project_name': 'Enter project name',
         'project_saved': 'Project saved',
+        'project_deleted': 'Project deleted',
+        'project_renamed': 'Project renamed',
+        'session_deleted': 'Session deleted',
+        'session_renamed': 'Session renamed',
+        'confirm_delete_project': 'Are you sure you want to delete this project? This action cannot be undone.',
+        'confirm_delete_session': 'Are you sure you want to delete this session? This action cannot be undone.',
+        'enter_new_project_name': 'Enter new project name',
+        'enter_new_session_name': 'Enter new session name',
         
         // 输入框占位符
         'input_placeholder': 'Enter your question or instruction...',
@@ -149,6 +177,10 @@ export const translations = {
         'project_create_failed': 'Failed to create project',
         'project_save_failed': 'Failed to save project',
         'session_create_failed': 'Failed to create session',
+        'project_delete_failed': 'Failed to delete project',
+        'project_rename_failed': 'Failed to rename project',
+        'session_delete_failed': 'Failed to delete session',
+        'session_rename_failed': 'Failed to rename session',
         
         // 系统消息
         'error_occurred': 'Error occurred: {message}',
@@ -195,9 +227,13 @@ export const translations = {
         'send': '送信',
         'stop': '停止',
         'close': '閉じる',
-        'new_project': '新規プロジェクト',
+        'new_project': '新規',
         'save_project': '保存',
-        'new_session': '新規セッション',
+        'new_session': '新規',
+        'delete_project': '削除',
+        'rename_project': '名前変更',
+        'delete_session': '削除',
+        'rename_session': '名前変更',
         
         // ステータスとヒント
         'records_count': '{count} 件',
@@ -211,6 +247,14 @@ export const translations = {
         'untitled_session': '無題のセッション',
         'enter_project_name': 'プロジェクト名を入力',
         'project_saved': '保存しました',
+        'project_deleted': 'プロジェクトを削除しました',
+        'project_renamed': 'プロジェクト名を変更しました',
+        'session_deleted': 'セッションを削除しました',
+        'session_renamed': 'セッション名を変更しました',
+        'confirm_delete_project': 'このプロジェクトを削除してもよろしいですか？この操作は元に戻せません。',
+        'confirm_delete_session': 'このセッションを削除してもよろしいですか？この操作は元に戻せません。',
+        'enter_new_project_name': '新しいプロジェクト名を入力してください',
+        'enter_new_session_name': '新しいセッション名を入力してください',
         
         // 入力欄プレースホルダー
         'input_placeholder': '質問や指示を入力してください...',
@@ -230,6 +274,10 @@ export const translations = {
         'project_create_failed': 'プロジェクト作成に失敗しました',
         'project_save_failed': 'プロジェクト保存に失敗しました',
         'session_create_failed': 'セッション作成に失敗しました',
+        'project_delete_failed': 'プロジェクト削除に失敗しました',
+        'project_rename_failed': 'プロジェクト名変更に失敗しました',
+        'session_delete_failed': 'セッション削除に失敗しました',
+        'session_rename_failed': 'セッション名変更に失敗しました',
         
         // システムメッセージ
         'error_occurred': 'エラーが発生しました: {message}',
