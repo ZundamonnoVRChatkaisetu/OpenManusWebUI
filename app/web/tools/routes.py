@@ -8,7 +8,7 @@ import json
 import logging
 
 from .tool_manager import ToolManager
-from .config import get_tool_config, update_tool_config
+from .config import get_tool_config, update_tool_config, TOOLS_CONFIG_FILE
 
 # ロガー設定
 logger = logging.getLogger(__name__)
@@ -146,6 +146,22 @@ async def verify_tool_config_post(tool_name: str):
 async def verify_tool_config_get(tool_name: str):
     """ツール設定の検証（GETメソッド）"""
     return await _verify_tool_config(tool_name)
+
+
+@router.get("/config_path")
+async def get_config_path():
+    """設定ファイルの保存パスを取得する"""
+    try:
+        return {
+            "success": True,
+            "config_path": str(TOOLS_CONFIG_FILE)
+        }
+    except Exception as e:
+        logger.error(f"設定パス取得エラー: {str(e)}")
+        return {
+            "success": False,
+            "message": f"設定パス取得エラー: {str(e)}"
+        }
 
 
 async def _verify_tool_config(tool_name: str):
