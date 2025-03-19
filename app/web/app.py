@@ -38,12 +38,18 @@ from app.web.models import (
 )
 import app.web.database as db
 
+# MCP関連ツールのインポート
+from app.web.tools.routes import router as tools_router
+
 
 # 控制是否自动打开浏览器 (读取环境变量，默认为True)
 AUTO_OPEN_BROWSER = os.environ.get("AUTO_OPEN_BROWSER", "1") == "1"
 last_opened = False  # 跟踪浏览器是否已打开
 
 app = FastAPI(title="OpenManus Web")
+
+# ツールAPIルーターの登録
+app.include_router(tools_router)
 
 # 获取当前文件所在目录
 current_dir = Path(__file__).parent
@@ -712,6 +718,10 @@ class LLMCommunicationTracker:
 
 # 导入新创建的LLM包装器
 from app.agent.llm_wrapper import LLMCallbackWrapper
+from app.web.tools.tool_manager import ToolManager
+
+# ツールマネージャーの初期化
+tool_manager = ToolManager()
 
 
 # 修改文件API，支持工作区目录
@@ -1010,6 +1020,36 @@ async def process_prompt(session_id: str, prompt: str, project_id: Optional[str]
 
             # 直接记录用户输入的prompt
             ThinkingTracker.add_communication(session_id, t('user_input'), prompt)
+            
+            # ====== ツールコマンドの検出と実行 ======
+            # テキスト内のツールコマンドを検出
+            has_tool_commands = bool(tool_manager.extract_tool_commands(prompt))
+            
+            if has_tool_commands:
+                ThinkingTracker.add_thinking_step(session_id, "ツールコマンドを検出しました。処理を開始します...")
+                processed_text, tool_results = await tool_manager.process_text(prompt)
+                
+                # ツール実行結果をトラッキング
+                for result in tool_results:
+                    tool_name = result["tool"]
+                    status = result["result"]["status"]
+                    message = result["result"]["message"]
+                    
+                    if status == "success":
+                        ThinkingTracker.add_thinking_step(
+                            session_id, 
+                            f"ツール '{tool_name}' を実行しました: {message}"
+                        )
+                    else:
+                        ThinkingTracker.add_thinking_step(
+                            session_id, 
+                            f"ツール '{tool_name}' の実行中にエラーが発生しました: {message}"
+                        )
+                
+                # 処理後のテキストをプロンプトとして使用
+                prompt = processed_text
+            
+            # 以下は既存の処理
 
             # 初始化代理和任务流程
             ThinkingTracker.add_thinking_step(session_id, t('init_agent'))
@@ -1132,6 +1172,13 @@ async def process_prompt(session_id: str, prompt: str, project_id: Optional[str]
                     ThinkingTracker.add_thinking_step(
                         session_id, f"プロジェクト指示を適用: {project['instructions'][:50]}{'...' if len(project['instructions']) > 50 else ''}"
                     )
+
+                    # 利用可能なツールに関する情報を追加
+                    tools_instructions = tool_manager.get_tools_usage_instructions()
+                    if tools_instructions:
+                        prompt += f"\n\n{tools_instructions}"
+                        log.info("ツール使用手順を追加しました")
+                        ThinkingTracker.add_thinking_step(session_id, "ツール使用手順を追加しました")
 
             # 执行实际处理 - 传递job_id和cancel_event给flow.execute方法
             result = await flow.execute(prompt, job_id, cancel_event)
