@@ -675,6 +675,29 @@
             gap: 10px;
         }
 
+        /* ナビゲーションリンク */
+        .nav-links {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            gap: 15px;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--primary-color);
+            font-weight: 500;
+            padding: 5px 10px;
+            border-radius: 4px;
+            background-color: rgba(74, 111, 165, 0.1);
+            transition: background-color 0.2s;
+        }
+
+        .nav-links a:hover {
+            background-color: rgba(74, 111, 165, 0.2);
+        }
+
         /* 响应式设计 */
         @media (max-width: 768px) {
             .app-container {
@@ -695,6 +718,12 @@
             .left-panel, .right-panel {
                 max-width: 100%;
             }
+
+            .nav-links {
+                position: static;
+                margin-bottom: 15px;
+                justify-content: center;
+            }
         }
 
         /* 代码高亮 */
@@ -708,6 +737,9 @@
 <body>
     <div class="container">
         <header>
+            <div class="nav-links">
+                <a href="/static/tool_settings.html" id="tool-settings-link" data-i18n="tool_settings">ツール設定</a>
+            </div>
             <h1 data-i18n="app_title">OpenManus <span class="emoji">🐱</span></h1>
             <p class="subtitle" data-i18n="app_subtitle">AI智能助手 - 网页版</p>
             <div class="language-selector">
@@ -813,7 +845,7 @@
                             </div>
 
                             <div class="input-area">
-                                <textarea id="user-input" placeholder="输入您的问题或指令..." data-i18n="input_placeholder"></textarea>
+                                <textarea id="user-input" placeholder="输入您的问题或指令...（ツールコマンドも使用可能）" data-i18n="input_placeholder"></textarea>
                                 <div class="button-group">
                                     <button id="send-btn" class="btn-send" data-i18n="send">发送</button>
                                     <button id="stop-btn" class="btn-stop" disabled data-i18n="stop">停止</button>
