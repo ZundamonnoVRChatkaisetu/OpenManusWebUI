@@ -22,8 +22,7 @@ DEFAULT_CONFIG = {
         "repositories": []
     },
     "web_search": {
-        "api_key": "",
-        "cse_id": ""
+        "api_key": ""
     }
 }
 
@@ -103,18 +102,11 @@ def check_env_settings():
         updated = True
     
     # Web検索設定の確認
-    web_search_api_key = os.environ.get("WEB_SEARCH_API_KEY")
+    web_search_api_key = os.environ.get("BRAVE_SEARCH_API_KEY")
     if web_search_api_key and config.get("web_search", {}).get("api_key") != web_search_api_key:
         if "web_search" not in config:
             config["web_search"] = {}
         config["web_search"]["api_key"] = web_search_api_key
-        updated = True
-    
-    web_search_cse_id = os.environ.get("WEB_SEARCH_CSE_ID")
-    if web_search_cse_id and config.get("web_search", {}).get("cse_id") != web_search_cse_id:
-        if "web_search" not in config:
-            config["web_search"] = {}
-        config["web_search"]["cse_id"] = web_search_cse_id
         updated = True
     
     # 更新があれば保存
