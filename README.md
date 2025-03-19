@@ -127,7 +127,7 @@ Then input your idea via terminal!
 
 ### Web Interface
 
-You can also use OpenManus through a user-friendly web interface:
+You can use OpenManus through a user-friendly web interface:
 
 ```bash
 uvicorn app.web.app:app --reload
@@ -149,6 +149,35 @@ For unstable version, you also can run:
 ```bash
 python run_flow.py
 ```
+
+### LM Studio Integration
+
+The web interface now includes an option to automatically start LM Studio's API server. This allows you to use local language models without having to manually start and configure LM Studio:
+
+```bash
+python web_run.py --lmstudio
+```
+
+Additional options for LM Studio integration:
+
+```bash
+# Specify a custom port for LM Studio's server (default: 1234)
+python web_run.py --lmstudio --lm-port 8080
+
+# Launch LM Studio with GUI mode instead of headless mode
+python web_run.py --lmstudio --lm-gui
+
+# Combined with other OpenManus web options
+python web_run.py --lmstudio --port 3000 --no-browser
+```
+
+This feature automatically:
+- Locates LM Studio on your computer
+- Starts the API server
+- Configures the correct port
+- Ensures clean shutdown when you close OpenManus
+
+**Note**: You need to have LM Studio installed on your computer. The feature will automatically search for LM Studio in common installation locations on Windows, macOS, and Linux.
 
 ## How to contribute
 
