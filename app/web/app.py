@@ -6,7 +6,8 @@ import time
 import uuid
 import webbrowser
 from pathlib import Path
-from typing import Dict
+from datetime import datetime
+from typing import Dict, List, Optional
 
 from fastapi import (
     BackgroundTasks,
@@ -15,6 +16,8 @@ from fastapi import (
     Request,
     WebSocket,
     WebSocketDisconnect,
+    Depends,
+    Query,
 )
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -27,6 +30,13 @@ from app.flow.flow_factory import FlowFactory
 from app.web.log_handler import capture_session_logs, get_logs
 from app.web.log_parser import get_all_logs_info, get_latest_log_info, parse_log_file
 from app.web.thinking_tracker import ThinkingTracker, set_language, t
+from app.web.models import (
+    Project, ProjectCreate, ProjectUpdate, 
+    Session, SessionCreate, SessionUpdate,
+    MessageCreate, ChatRequest, ChatResponse,
+    ProjectWithSessions, SessionWithMessages
+)
+import app.web.database as db
 
 
 # 控制是否自动打开浏览器 (读取环境变量，默认为True)
@@ -131,11 +141,236 @@ async def update_language(lang_req: LanguageRequest):
         raise HTTPException(status_code=400, detail="Unsupported language")
 
 
+# プロジェクト関連エンドポイント
+@app.get("/api/projects", response_model=List[Project])
+async def get_projects():
+    """プロジェクト一覧を取得"""
+    projects = db.get_all_projects()
+    
+    # SQLiteのタイムスタンプを日時に変換
+    for project in projects:
+        project["created_at"] = datetime.fromisoformat(project["created_at"])
+        project["updated_at"] = datetime.fromisoformat(project["updated_at"])
+    
+    return projects
+
+@app.post("/api/projects", response_model=Project)
+async def create_project(project: ProjectCreate):
+    """新規プロジェクトを作成"""
+    project_id = str(uuid.uuid4())
+    success = db.create_project(project_id, project.name, project.instructions)
+    
+    if not success:
+        raise HTTPException(status_code=500, detail="プロジェクト作成に失敗しました")
+    
+    project_data = db.get_project(project_id)
+    
+    if not project_data:
+        raise HTTPException(status_code=404, detail="作成したプロジェクトが見つかりません")
+    
+    # SQLiteのタイムスタンプを日時に変換
+    project_data["created_at"] = datetime.fromisoformat(project_data["created_at"])
+    project_data["updated_at"] = datetime.fromisoformat(project_data["updated_at"])
+    
+    return project_data
+
+@app.get("/api/projects/{project_id}", response_model=ProjectWithSessions)
+async def get_project(project_id: str):
+    """プロジェクト詳細を取得"""
+    project = db.get_project(project_id)
+    
+    if not project:
+        raise HTTPException(status_code=404, detail="プロジェクトが見つかりません")
+    
+    # SQLiteのタイムスタンプを日時に変換
+    project["created_at"] = datetime.fromisoformat(project["created_at"])
+    project["updated_at"] = datetime.fromisoformat(project["updated_at"])
+    
+    # プロジェクトに属するセッションを取得
+    sessions = db.get_project_sessions(project_id)
+    
+    # セッションの日時変換
+    for session in sessions:
+        session["created_at"] = datetime.fromisoformat(session["created_at"])
+    
+    project["sessions"] = sessions
+    
+    return project
+
+@app.put("/api/projects/{project_id}", response_model=Project)
+async def update_project_endpoint(project_id: str, project_update: ProjectUpdate):
+    """プロジェクトを更新"""
+    project = db.get_project(project_id)
+    
+    if not project:
+        raise HTTPException(status_code=404, detail="プロジェクトが見つかりません")
+    
+    success = db.update_project(
+        project_id, 
+        project_update.name, 
+        project_update.instructions
+    )
+    
+    if not success:
+        raise HTTPException(status_code=500, detail="プロジェクト更新に失敗しました")
+    
+    updated_project = db.get_project(project_id)
+    
+    # SQLiteのタイムスタンプを日時に変換
+    updated_project["created_at"] = datetime.fromisoformat(updated_project["created_at"])
+    updated_project["updated_at"] = datetime.fromisoformat(updated_project["updated_at"])
+    
+    return updated_project
+
+@app.delete("/api/projects/{project_id}")
+async def delete_project_endpoint(project_id: str):
+    """プロジェクトを削除"""
+    project = db.get_project(project_id)
+    
+    if not project:
+        raise HTTPException(status_code=404, detail="プロジェクトが見つかりません")
+    
+    success = db.delete_project(project_id)
+    
+    if not success:
+        raise HTTPException(status_code=500, detail="プロジェクト削除に失敗しました")
+    
+    return {"success": True}
+
+# セッション関連エンドポイント
+@app.post("/api/projects/{project_id}/sessions", response_model=Session)
+async def create_session_endpoint(project_id: str, session_create: SessionCreate):
+    """新規セッションを作成"""
+    project = db.get_project(project_id)
+    
+    if not project:
+        raise HTTPException(status_code=404, detail="プロジェクトが見つかりません")
+    
+    session_id = str(uuid.uuid4())
+    
+    # ワークスペースディレクトリを作成
+    workspace_dir = create_workspace(session_id)
+    workspace_path = str(workspace_dir.relative_to(WORKSPACE_ROOT))
+    
+    success = db.create_session(
+        session_id, 
+        project_id, 
+        session_create.title, 
+        workspace_path
+    )
+    
+    if not success:
+        raise HTTPException(status_code=500, detail="セッション作成に失敗しました")
+    
+    session_data = db.get_session(session_id)
+    
+    if not session_data:
+        raise HTTPException(status_code=404, detail="作成したセッションが見つかりません")
+    
+    # SQLiteのタイムスタンプを日時に変換
+    session_data["created_at"] = datetime.fromisoformat(session_data["created_at"])
+    
+    return session_data
+
+@app.get("/api/sessions/{session_id}", response_model=SessionWithMessages)
+async def get_session_endpoint(session_id: str):
+    """セッション詳細を取得"""
+    session = db.get_session(session_id)
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="セッションが見つかりません")
+    
+    # SQLiteのタイムスタンプを日時に変換
+    session["created_at"] = datetime.fromisoformat(session["created_at"])
+    
+    # セッションに属するメッセージを取得
+    messages = db.get_session_messages(session_id)
+    
+    # メッセージの日時変換
+    for message in messages:
+        message["created_at"] = datetime.fromisoformat(message["created_at"])
+    
+    session["messages"] = messages
+    
+    return session
+
+@app.put("/api/sessions/{session_id}", response_model=Session)
+async def update_session_endpoint(session_id: str, session_update: SessionUpdate):
+    """セッションを更新"""
+    session = db.get_session(session_id)
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="セッションが見つかりません")
+    
+    success = db.update_session(
+        session_id, 
+        session_update.title
+    )
+    
+    if not success:
+        raise HTTPException(status_code=500, detail="セッション更新に失敗しました")
+    
+    updated_session = db.get_session(session_id)
+    
+    # SQLiteのタイムスタンプを日時に変換
+    updated_session["created_at"] = datetime.fromisoformat(updated_session["created_at"])
+    
+    return updated_session
+
 @app.post("/api/chat")
 async def create_chat_session(
-    session_req: SessionRequest, background_tasks: BackgroundTasks
+    chat_req: ChatRequest, background_tasks: BackgroundTasks
 ):
-    session_id = str(uuid.uuid4())
+    # ユーザーがプロジェクトとセッションを指定した場合はそれを使用
+    project_id = chat_req.project_id
+    session_id = chat_req.session_id
+    
+    # セッションIDがある場合は既存セッションを使用
+    if session_id:
+        session = db.get_session(session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="指定されたセッションが見つかりません")
+        
+        project_id = session["project_id"]
+    
+    # プロジェクトIDがある場合は新しいセッションを作成
+    elif project_id:
+        project = db.get_project(project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="指定されたプロジェクトが見つかりません")
+        
+        # 新しいセッションを作成
+        session_id = str(uuid.uuid4())
+        
+        # セッションのタイトルを設定（デフォルトはプロンプトの最初の20文字）
+        title = chat_req.prompt[:20] + ("..." if len(chat_req.prompt) > 20 else "")
+        
+        # ワークスペースディレクトリを作成
+        workspace_dir = create_workspace(session_id)
+        workspace_path = str(workspace_dir.relative_to(WORKSPACE_ROOT))
+        
+        # セッションをデータベースに保存
+        db.create_session(session_id, project_id, title, workspace_path)
+    
+    # どちらも指定がない場合は新しいプロジェクトと新しいセッションを作成
+    else:
+        # 新しいプロジェクトを作成
+        project_id = str(uuid.uuid4())
+        project_name = "プロジェクト " + datetime.now().strftime("%Y-%m-%d %H:%M")
+        db.create_project(project_id, project_name)
+        
+        # 新しいセッションを作成
+        session_id = str(uuid.uuid4())
+        title = chat_req.prompt[:20] + ("..." if len(chat_req.prompt) > 20 else "")
+        
+        # ワークスペースディレクトリを作成
+        workspace_dir = create_workspace(session_id)
+        workspace_path = str(workspace_dir.relative_to(WORKSPACE_ROOT))
+        
+        # セッションをデータベースに保存
+        db.create_session(session_id, project_id, title, workspace_path)
+    
+    # 既存のコードと互換性を持たせるための処理
     active_sessions[session_id] = {
         "status": "processing",
         "result": None,
@@ -146,16 +381,23 @@ async def create_chat_session(
     # 创建取消事件
     cancel_events[session_id] = asyncio.Event()
 
-    # 创建工作区目录
-    workspace_dir = create_workspace(session_id)
-    active_sessions[session_id]["workspace"] = str(
-        workspace_dir.relative_to(WORKSPACE_ROOT)
-    )
+    # セッションのワークスペースパスを取得
+    session = db.get_session(session_id)
+    workspace_path = session["workspace_path"]
+    
+    # ユーザーメッセージをデータベースに保存
+    message_id = str(uuid.uuid4())
+    db.create_message(message_id, session_id, "user", chat_req.prompt)
+    
+    # 既存のactive_sessionsを更新
+    workspace_dir = WORKSPACE_ROOT / workspace_path
+    active_sessions[session_id]["workspace"] = workspace_path
 
-    background_tasks.add_task(process_prompt, session_id, session_req.prompt)
+    background_tasks.add_task(process_prompt, session_id, chat_req.prompt)
     return {
         "session_id": session_id,
-        "workspace": active_sessions[session_id]["workspace"],
+        "project_id": project_id,
+        "workspace": workspace_path,
     }
 
 
@@ -769,6 +1011,29 @@ async def process_prompt(session_id: str, prompt: str):
                 active_sessions[session_id]["result"] = "処理がユーザーによって停止されました"
                 return
 
+            # プロジェクト指示を取得（存在する場合）
+            # セッションからプロジェクトを取得
+            session_data = db.get_session(session_id)
+            
+            if session_data and "project_id" in session_data:
+                project_id = session_data["project_id"]
+                project = db.get_project(project_id)
+                
+                # プロジェクトに指示があれば、それをプロンプトに追加
+                if project and project.get("instructions"):
+                    instructions_prompt = (
+                        f"以下の指示に従ってタスクを実行してください：\n\n"
+                        f"{project['instructions']}\n\n"
+                        f"ユーザーからの質問：\n{prompt}"
+                    )
+                    prompt = instructions_prompt
+                    
+                    # 指示を使用している旨をログに記録
+                    log.info(f"プロジェクト指示を適用しました: {project_id}")
+                    ThinkingTracker.add_thinking_step(
+                        session_id, f"プロジェクト指示を適用: {project['instructions'][:50]}{'...' if len(project['instructions']) > 50 else ''}"
+                    )
+
             # 执行实际处理 - 传递job_id和cancel_event给flow.execute方法
             result = await flow.execute(prompt, job_id, cancel_event)
 
@@ -792,6 +1057,10 @@ async def process_prompt(session_id: str, prompt: str):
             ThinkingTracker.add_conclusion(
                 session_id, f"タスク処理が完了しました！ワークスペース {workspace_dir.name} に結果が生成されました。"
             )
+
+            # AIの応答をデータベースに保存
+            message_id = str(uuid.uuid4())
+            db.create_message(message_id, session_id, "assistant", result)
 
             active_sessions[session_id]["status"] = "completed"
             active_sessions[session_id]["result"] = result
