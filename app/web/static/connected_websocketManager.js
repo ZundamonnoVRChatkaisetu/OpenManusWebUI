@@ -1,5 +1,7 @@
 // connected_websocketManager.js - 处理WebSocket连接和消息
 
+import { t } from '/static/i18n.js';
+
 export class WebSocketManager {
     constructor(messageHandler) {
         this.socket = null;
@@ -41,7 +43,7 @@ export class WebSocketManager {
     // 处理连接打开
     handleOpen(event) {
         console.log('WebSocket连接已建立');
-        document.getElementById('status-indicator').textContent = '已连接到服务器...';
+        document.getElementById('status-indicator').textContent = t('connection_established');
         // 重置重连尝试次数
         this.reconnectAttempts = 0;
     }
@@ -83,7 +85,7 @@ export class WebSocketManager {
 
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
             console.log('达到最大重连尝试次数，停止重连');
-            document.getElementById('status-indicator').textContent = '连接已断开，请刷新页面重试';
+            document.getElementById('status-indicator').textContent = t('connection_failed');
             return;
         }
 
@@ -91,7 +93,10 @@ export class WebSocketManager {
         const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1); // 指数退避
 
         console.log(`尝试重连 (${this.reconnectAttempts}/${this.maxReconnectAttempts})，延迟 ${delay}ms`);
-        document.getElementById('status-indicator').textContent = `连接已断开，正在尝试重连 (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`;
+        document.getElementById('status-indicator').textContent = t('reconnecting', {
+            current: this.reconnectAttempts,
+            max: this.maxReconnectAttempts
+        });
 
         setTimeout(() => {
             if (this.sessionId) {
