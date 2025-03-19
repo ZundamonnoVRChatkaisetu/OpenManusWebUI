@@ -58,7 +58,7 @@ def start_lmstudio_server(lm_port=1234, no_gui=True):
     
     try:
         # コマンドライン引数
-        cmd = [lmstudio_executable, "--api-port", str(lm_port)]
+        cmd = [lmstudio_executable, "--api-port", str(lm_port), "--max-listeners", "20"]
         if no_gui:
             cmd.append("--no-gui")
         
@@ -82,7 +82,9 @@ def start_lmstudio_server(lm_port=1234, no_gui=True):
             def read_output(pipe, prefix):
                 for line in iter(pipe.readline, ''):
                     if line:
-                        print(f"{prefix}: {line.strip()}")
+                        # エラーメッセージをフィルタリング
+                        if "MaxListenersExceededWarning" not in line and "lib-bad" not in line:
+                            print(f"{prefix}: {line.strip()}")
             
             # 標準出力と標準エラーを非同期に読み取るスレッドを開始
             threading.Thread(target=read_output, args=(lmstudio_process.stdout, "LMStudio"), daemon=True).start()
