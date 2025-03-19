@@ -97,26 +97,18 @@
                             </div>
                             <div class="card-body">
                                 <p class="tool-description">
-                                    Google Custom Search APIを利用してWeb検索を行います。最新の情報や事実確認に役立ちます。
+                                    Brave Search APIを利用してWeb検索を行います。最新の情報や事実確認に役立ちます。
                                 </p>
                                 
                                 <form id="webSearchSettingsForm">
                                     <div class="mb-3">
-                                        <label for="web_search_api_key" class="form-label">Google API Key</label>
+                                        <label for="web_search_api_key" class="form-label">Brave Search API Key</label>
                                         <div class="input-group">
                                             <input type="password" class="form-control" id="web_search_api_key" name="api_key" placeholder="API Key">
                                             <button class="btn btn-outline-secondary" type="button" id="toggleWebSearchKey">表示</button>
                                         </div>
                                         <div class="form-text">
-                                            <a href="https://developers.google.com/custom-search/v1/overview" target="_blank">Google Cloud Console</a>でCustom Search JSON APIキーを取得してください。
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label for="web_search_cse_id" class="form-label">カスタム検索エンジンID (cx)</label>
-                                        <input type="text" class="form-control" id="web_search_cse_id" name="cse_id" placeholder="カスタム検索エンジンID">
-                                        <div class="form-text">
-                                            <a href="https://programmablesearchengine.google.com/controlpanel/create" target="_blank">Programmable Search Engine</a>でカスタム検索エンジンを作成し、検索エンジンIDを取得してください。
+                                            <a href="https://brave.com/search/api/" target="_blank">Brave Search API</a>からAPIキーを取得してください。
                                         </div>
                                     </div>
                                     
@@ -161,9 +153,11 @@
             fetch('/api/tools/config/github')
                 .then(response => response.json())
                 .then(data => {
-                    if (data.config) {
+                    if (data && data.config) {
                         document.getElementById('github_access_token').value = data.config.access_token || '';
                         document.getElementById('github_username').value = data.config.username || '';
+                    } else {
+                        console.error('GitHub設定データが不正な形式です:', data);
                     }
                 })
                 .catch(error => {
@@ -174,9 +168,10 @@
             fetch('/api/tools/config/web_search')
                 .then(response => response.json())
                 .then(data => {
-                    if (data.config) {
+                    if (data && data.config) {
                         document.getElementById('web_search_api_key').value = data.config.api_key || '';
-                        document.getElementById('web_search_cse_id').value = data.config.cse_id || '';
+                    } else {
+                        console.error('Web検索設定データが不正な形式です:', data);
                     }
                 })
                 .catch(error => {
@@ -214,8 +209,7 @@
                 e.preventDefault();
                 
                 const config = {
-                    api_key: document.getElementById('web_search_api_key').value,
-                    cse_id: document.getElementById('web_search_cse_id').value
+                    api_key: document.getElementById('web_search_api_key').value
                 };
                 
                 saveConfig('web_search', config, 'webSearchStatusMessage');
