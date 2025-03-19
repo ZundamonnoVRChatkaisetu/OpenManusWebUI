@@ -9,6 +9,65 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 
+# 多语言消息翻译
+TRANSLATIONS = {
+    'zh-CN': {
+        'start_processing': '开始处理用户请求',
+        'workspace_dir': '工作区目录',
+        'user_input': '用户输入通信',
+        'init_agent': '初始化AI代理和任务流程',
+        'analyze_request': '分析用户请求',
+        'task_complete': '任务处理完成！已生成结果。',
+        'current_step': '当前步骤',
+        'initialization': '初始化',
+        'completed': '已完成',
+        'not_started': '未开始',
+        'send_to_llm': '发送到LLM',
+        'receive_from_llm': '从LLM接收',
+    },
+    'en-US': {
+        'start_processing': 'Start processing user request',
+        'workspace_dir': 'Workspace directory',
+        'user_input': 'User input communication',
+        'init_agent': 'Initialize AI agent and task flow',
+        'analyze_request': 'Analyze user request',
+        'task_complete': 'Task processing completed! Results have been generated.',
+        'current_step': 'Current step',
+        'initialization': 'Initialization',
+        'completed': 'Completed',
+        'not_started': 'Not started',
+        'send_to_llm': 'Send to LLM',
+        'receive_from_llm': 'Receive from LLM',
+    },
+    'ja-JP': {
+        'start_processing': 'ユーザーリクエストの処理を開始',
+        'workspace_dir': 'ワークスペースディレクトリ',
+        'user_input': 'ユーザー入力通信',
+        'init_agent': 'AIエージェントとタスクフローを初期化',
+        'analyze_request': 'ユーザーリクエストを分析',
+        'task_complete': 'タスク処理が完了しました！結果が生成されました。',
+        'current_step': '現在のステップ',
+        'initialization': '初期化中',
+        'completed': '完了',
+        'not_started': '未開始',
+        'send_to_llm': 'LLMへ送信',
+        'receive_from_llm': 'LLMから受信',
+    }
+}
+
+# 現在の言語設定（デフォルトは中国語）
+CURRENT_LANGUAGE = 'zh-CN'
+
+# 翻訳を取得する関数
+def t(key, lang=None):
+    """指定されたキーの翻訳を返す"""
+    language = lang or CURRENT_LANGUAGE
+    if language in TRANSLATIONS and key in TRANSLATIONS[language]:
+        return TRANSLATIONS[language][key]
+    # 言語またはキーが存在しない場合、中国語の翻訳を返す
+    return TRANSLATIONS['zh-CN'].get(key, key)
+
+
 # 全局思考步骤存储
 class ThinkingStep:
     """表示一个思考步骤"""
@@ -63,7 +122,7 @@ class ThinkingTracker:
             cls._session_steps[session_id] = []
             cls._session_status[session_id] = TaskStatus.THINKING
             cls._session_progress[session_id] = {
-                "current_step": "初始化",
+                "current_step": t('initialization'),
                 "total_steps": 0,
                 "completed_steps": 0,
                 "percentage": 0,
@@ -87,7 +146,7 @@ class ThinkingTracker:
                     # Attempt to extract step number and total steps from the message
                     import re
 
-                    match = re.search(r"Executing step (\d+)/(\d+)", message)
+                    match = re.search(r"Executing step (\\d+)/(\\d+)", message)
                     if match:
                         current_step_num = int(match.group(1))
                         total_steps = int(match.group(2))
@@ -115,6 +174,14 @@ class ThinkingTracker:
             direction: 通信方向，如 "发送到LLM"、"从LLM接收"
             content: 通信内容
         """
+        # 通信方向多言語対応
+        if direction == "发送到LLM":
+            direction = t('send_to_llm')
+        elif direction == "从LLM接收":
+            direction = t('receive_from_llm')
+        elif direction == "用户输入":
+            direction = t('user_input')
+
         message = f"{direction}通信"
         step = ThinkingStep(message, "communication", content)
         with cls._lock:
@@ -160,7 +227,7 @@ class ThinkingTracker:
                 if session_id in cls._session_progress:
                     progress = cls._session_progress[session_id]
                     progress["percentage"] = 100
-                    progress["current_step"] = "已完成"
+                    progress["current_step"] = t('completed')
 
     @classmethod
     def add_error(cls, session_id: str, message: str) -> None:
@@ -202,7 +269,7 @@ class ThinkingTracker:
         with cls._lock:
             if session_id not in cls._session_progress:
                 return {
-                    "current_step": "未开始",
+                    "current_step": t('not_started'),
                     "total_steps": 0,
                     "completed_steps": 0,
                     "percentage": 0,
@@ -249,7 +316,7 @@ class ThinkingTracker:
                 # 针对特定类型的日志内容生成更有意义的思考步骤
                 if "开始执行" in msg:
                     cls.add_thinking_step(
-                        session_id, f"开始执行任务: {msg.replace('开始执行: ', '')}"
+                        session_id, f"{t('start_processing')}: {msg.replace('开始执行: ', '')}"
                     )
                 elif "执行步骤" in msg or "步骤" in msg:
                     # 尝试提取步骤信息
@@ -296,8 +363,8 @@ class ThinkingTracker:
         import re
 
         # 尝试从日志中提取步骤信息
-        step_match = re.search(r"步骤 (\d+)/(\d+)", message) or re.search(
-            r"Step (\d+)/(\d+)", message
+        step_match = re.search(r"步骤 (\\d+)/(\\d+)", message) or re.search(
+            r"Step (\\d+)/(\\d+)", message
         )
         if step_match and session_id in cls._session_progress:
             current_step = int(step_match.group(1))
@@ -393,7 +460,7 @@ def generate_thinking_steps(
 
     # 添加初始步骤
     ThinkingTracker.add_thinking_step(
-        session_id, f"开始处理任务: {task_description if task_description else '新请求'}"
+        session_id, f"{t('start_processing')}: {task_description if task_description else '新请求'}"
     )
 
     # 模拟每隔一段时间添加一个思考步骤
@@ -403,12 +470,12 @@ def generate_thinking_steps(
         # 模拟与LLM的通信
         if show_communication:
             # 模拟向LLM发送请求
-            ThinkingTracker.add_communication(session_id, "发送到LLM", f"请帮我{step}...")
+            ThinkingTracker.add_communication(session_id, t('send_to_llm'), f"请帮我{step}...")
 
             # 模拟接收LLM回复
             ThinkingTracker.add_communication(
-                session_id, "从LLM接收", f"我已完成{step}。这是相关结果: [详细信息]"
+                session_id, t('receive_from_llm'), f"我已完成{step}。这是相关结果: [详细信息]"
             )
 
     # 添加结论
-    ThinkingTracker.add_conclusion(session_id, "任务处理完成！已生成结果。")
+    ThinkingTracker.add_conclusion(session_id, t('task_complete'))
