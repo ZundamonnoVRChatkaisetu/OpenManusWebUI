@@ -3,15 +3,34 @@
 """
 import os
 import json
+import stat
 from pathlib import Path
 from typing import Dict, Any, Optional
 import logging
+import platform
+import tempfile
 
 # ロガー設定
 logger = logging.getLogger(__name__)
 
+# ユーザーのホームディレクトリを取得 (クロスプラットフォーム対応)
+USER_HOME = Path.home()
+
+# Windows/Mac/Linux対応 - ユーザーのホームディレクトリ内にアプリ設定用フォルダを作成
+if platform.system() == "Windows":
+    # Windows: %USERPROFILE%\AppData\Roaming\OpenManusWebUI
+    CONFIG_DIR = USER_HOME / "AppData" / "Roaming" / "OpenManusWebUI"
+elif platform.system() == "Darwin":
+    # macOS: ~/Library/Application Support/OpenManusWebUI
+    CONFIG_DIR = USER_HOME / "Library" / "Application Support" / "OpenManusWebUI"
+else:
+    # Linux/その他: ~/.config/openmanus-webui
+    CONFIG_DIR = USER_HOME / ".config" / "openmanus-webui"
+
+# 設定ディレクトリが作成できない場合のフォールバックとしてtempディレクトリを使用
+FALLBACK_CONFIG_DIR = Path(tempfile.gettempdir()) / "openmanus-webui"
+
 # 設定ファイルのパス
-CONFIG_DIR = Path(__file__).parent.parent.parent.parent / "config"
 TOOLS_CONFIG_FILE = CONFIG_DIR / "tools_config.json"
 
 # デフォルト設定
@@ -29,12 +48,36 @@ DEFAULT_CONFIG = {
 
 def ensure_config_exists():
     """設定ファイルの存在を確認し、なければデフォルト設定で作成"""
-    CONFIG_DIR.mkdir(exist_ok=True)
+    global CONFIG_DIR, TOOLS_CONFIG_FILE
+    
+    try:
+        # 設定ディレクトリを作成 (存在しなければ)
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        
+        # Linuxの場合、適切なパーミッションを設定
+        if platform.system() != "Windows":
+            os.chmod(CONFIG_DIR, stat.S_IRWXU)  # 700: 所有者のみ読み書き実行可能
+        
+        logger.info(f"設定ディレクトリを確認・作成しました: {CONFIG_DIR}")
+    except Exception as e:
+        # 設定ディレクトリの作成に失敗した場合、フォールバックを使用
+        logger.warning(f"設定ディレクトリ ({CONFIG_DIR}) の作成に失敗しました: {e}")
+        logger.warning(f"代替の設定ディレクトリを使用します: {FALLBACK_CONFIG_DIR}")
+        CONFIG_DIR = FALLBACK_CONFIG_DIR
+        TOOLS_CONFIG_FILE = CONFIG_DIR / "tools_config.json"
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     
     if not TOOLS_CONFIG_FILE.exists():
-        with open(TOOLS_CONFIG_FILE, 'w', encoding='utf-8') as f:
-            json.dump(DEFAULT_CONFIG, f, ensure_ascii=False, indent=2)
-        logger.info(f"デフォルト設定ファイルを作成しました: {TOOLS_CONFIG_FILE}")
+        try:
+            with open(TOOLS_CONFIG_FILE, 'w', encoding='utf-8') as f:
+                json.dump(DEFAULT_CONFIG, f, ensure_ascii=False, indent=2)
+            logger.info(f"デフォルト設定ファイルを作成しました: {TOOLS_CONFIG_FILE}")
+            
+            # Linuxの場合、適切なパーミッションを設定
+            if platform.system() != "Windows":
+                os.chmod(TOOLS_CONFIG_FILE, stat.S_IRUSR | stat.S_IWUSR)  # 600: 所有者のみ読み書き可能
+        except Exception as e:
+            logger.error(f"設定ファイルの作成に失敗しました: {e}")
 
 
 def load_config() -> Dict[str, Any]:
@@ -70,6 +113,13 @@ def save_config(config: Dict[str, Any]):
         with open(TOOLS_CONFIG_FILE, 'w', encoding='utf-8') as f:
             json.dump(config, f, ensure_ascii=False, indent=2)
         logger.info("設定ファイルを保存しました")
+        
+        # Linuxの場合、パーミッションを確認・修正
+        if platform.system() != "Windows":
+            current_mode = os.stat(TOOLS_CONFIG_FILE).st_mode
+            if not (current_mode & stat.S_IRUSR and current_mode & stat.S_IWUSR):
+                os.chmod(TOOLS_CONFIG_FILE, stat.S_IRUSR | stat.S_IWUSR)  # 600: 所有者のみ読み書き可能
+                logger.info("設定ファイルのパーミッションを修正しました")
     except Exception as e:
         logger.error(f"設定ファイルの保存に失敗しました: {e}")
 
@@ -162,3 +212,6 @@ def check_env_settings():
 
 # アプリケーション起動時に環境変数を確認
 check_env_settings()
+
+# 設定ファイルの場所を出力
+logger.info(f"設定ファイルの保存先: {TOOLS_CONFIG_FILE}")
