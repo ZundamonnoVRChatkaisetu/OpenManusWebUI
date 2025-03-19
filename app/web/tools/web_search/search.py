@@ -1,7 +1,7 @@
 """
 Web検索ツール
 
-Google検索を実行するためのツール
+Brave Searchを実行するためのツール
 """
 from typing import Dict, List, Any, Optional
 import logging
@@ -26,21 +26,21 @@ class WebSearchTool(Tool):
     
     async def execute(self, 
                      query: str, 
-                     num_results: int = 5, 
-                     start_index: int = 1) -> ToolResult:
+                     count: int = 5, 
+                     offset: int = 0) -> ToolResult:
         """
         Web検索を実行
         
         Args:
             query: 検索クエリ
-            num_results: 取得する結果の数 (デフォルト: 5, 最大: 10)
-            start_index: 検索結果の開始インデックス (デフォルト: 1)
+            count: 取得する結果の数 (デフォルト: 5, 最大: 20)
+            offset: 検索結果の開始インデックス (デフォルト: 0)
             
         Returns:
             ToolResult: 検索結果
         """
         try:
-            logger.info(f"Web検索実行: '{query}' (結果数: {num_results}, 開始インデックス: {start_index})")
+            logger.info(f"Web検索実行: '{query}' (結果数: {count}, 開始インデックス: {offset})")
             
             # 入力値の検証
             if not query or not isinstance(query, str):
@@ -51,17 +51,17 @@ class WebSearchTool(Tool):
                 )
             
             # 結果数の検証と調整
-            if not isinstance(num_results, int) or num_results < 1:
-                num_results = 5
-            elif num_results > 10:
-                num_results = 10
+            if not isinstance(count, int) or count < 1:
+                count = 5
+            elif count > 20:
+                count = 20
             
             # 開始インデックスの検証
-            if not isinstance(start_index, int) or start_index < 1:
-                start_index = 1
+            if not isinstance(offset, int) or offset < 0:
+                offset = 0
             
             # 検索実行
-            results = await self.client.search(query, num_results, start_index)
+            results = await self.client.search(query, count, offset)
             
             # エラーチェック
             if "error" in results:
@@ -75,9 +75,9 @@ class WebSearchTool(Tool):
             formatted_results = self.client.format_results(results)
             
             # 検索情報の取得
-            search_info = results.get("searchInformation", {})
-            total_results = search_info.get("totalResults", "0")
-            search_time = search_info.get("searchTime", 0)
+            total_results = results.get("web", {}).get("total", 0)
+            search_info = results.get("search_info", {})
+            search_time = search_info.get("time_taken_ms", 0) / 1000  # ミリ秒から秒に変換
             
             return ToolResult(
                 status=ToolResultStatus.SUCCESS,
@@ -86,8 +86,8 @@ class WebSearchTool(Tool):
                     "query": query,
                     "items": formatted_results,
                     "total_results": total_results,
-                    "current_page": start_index,
-                    "items_per_page": num_results
+                    "current_page": offset // count + 1,
+                    "items_per_page": count
                 }
             )
             
