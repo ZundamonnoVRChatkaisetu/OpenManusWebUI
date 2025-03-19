@@ -1,5 +1,7 @@
 // connected_workspaceManager.js - 处理工作区文件显示
 
+import { t } from '/static/i18n.js';
+
 export class WorkspaceManager {
     constructor(fileClickCallback) {
         this.workspaceContainer = document.getElementById('workspace-files');
@@ -33,7 +35,7 @@ export class WorkspaceManager {
         if (this.workspaces.length === 0) {
             const emptyDiv = document.createElement('div');
             emptyDiv.className = 'empty-workspace';
-            emptyDiv.textContent = '没有工作区文件';
+            emptyDiv.textContent = t('no_workspace_files');
             this.workspaceContainer.appendChild(emptyDiv);
             return;
         }
@@ -184,21 +186,21 @@ export class WorkspaceManager {
 
         // 重置倒计时值
         this.countdownValue = 5;
-        this.refreshCountdownElement.textContent = `${this.countdownValue}秒后刷新`;
+        this.refreshCountdownElement.textContent = t('refresh_countdown', { seconds: this.countdownValue });
 
         // 设置新计时器，每1秒更新一次
         this.refreshTimer = setInterval(() => {
             this.countdownValue--;
 
             if (this.countdownValue > 0) {
-                this.refreshCountdownElement.textContent = `${this.countdownValue}秒后刷新`;
+                this.refreshCountdownElement.textContent = t('refresh_countdown', { seconds: this.countdownValue });
             } else {
-                this.refreshCountdownElement.textContent = '刷新中...';
+                this.refreshCountdownElement.textContent = t('refreshing');
                 // 触发刷新
                 this.refreshWorkspaces();
                 // 重置倒计时
                 this.countdownValue = 5;
-                this.refreshCountdownElement.textContent = `${this.countdownValue}秒后刷新`;
+                this.refreshCountdownElement.textContent = t('refresh_countdown', { seconds: this.countdownValue });
             }
         }, 1000);
     }
@@ -208,7 +210,7 @@ export class WorkspaceManager {
         try {
             const response = await fetch('/api/files');
             if (!response.ok) {
-                throw new Error(`API错误: ${response.status}`);
+                throw new Error(t('api_error', { status: response.status }));
             }
 
             const data = await response.json();
@@ -217,7 +219,7 @@ export class WorkspaceManager {
             console.log('刷新文件列表');
 
         } catch (error) {
-            console.error('刷新工作区文件错误:', error);
+            console.error(t('load_workspace_error', { message: error.message }));
         }
     }
 }
