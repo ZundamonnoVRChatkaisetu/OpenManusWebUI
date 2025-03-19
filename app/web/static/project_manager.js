@@ -10,6 +10,10 @@ export class ProjectManager {
         
         // Claudeライクなプロジェクト管理のためにプロジェクト選択ハンドラーを保持
         this.handleProjectSelect = null;
+        
+        // 現在のプロジェクトとセッションデータを保持
+        this.currentProjectData = null;
+        this.currentSessionData = null;
     }
 
     init() {
@@ -147,6 +151,7 @@ export class ProjectManager {
             
             const projectData = await response.json();
             this.currentProjectId = projectId;
+            this.currentProjectData = projectData;
             
             // プロジェクトリストの選択状態を更新
             this.updateProjectList();
@@ -162,6 +167,7 @@ export class ProjectManager {
                 this.selectSession(projectData.sessions[0].id);
             } else {
                 this.currentSessionId = null;
+                this.currentSessionData = null;
             }
             
             // 外部のプロジェクト選択ハンドラを呼び出し
@@ -170,6 +176,13 @@ export class ProjectManager {
             }
         } catch (error) {
             console.error('プロジェクト詳細の読み込みに失敗しました:', error);
+        }
+    }
+    
+    // 現在のプロジェクトを再読み込み（セッションを更新するため）
+    async refreshCurrentProject() {
+        if (this.currentProjectId) {
+            await this.selectProject(this.currentProjectId);
         }
     }
 
@@ -268,13 +281,6 @@ export class ProjectManager {
             }
         });
         
-        // 親コンポーネントにセッション選択を通知
-        if (this.handleSessionSelect) {
-            this.handleSessionSelect(sessionId);
-        } else {
-            console.warn('セッション選択ハンドラが設定されていません');
-        }
-        
         try {
             const response = await fetch(`/api/sessions/${sessionId}`);
             if (!response.ok) {
@@ -282,12 +288,14 @@ export class ProjectManager {
             }
             
             const sessionData = await response.json();
-            // メッセージ表示などの処理
+            this.currentSessionData = sessionData;
             
-            // チャット履歴を表示する場合、ここでメッセージを取得して表示
-            // if (sessionData.messages && sessionData.messages.length > 0) {
-            //     this.displayChatHistory(sessionData.messages);
-            // }
+            // 親コンポーネントにセッション選択を通知
+            if (this.handleSessionSelect) {
+                this.handleSessionSelect(sessionId);
+            } else {
+                console.warn('セッション選択ハンドラが設定されていません');
+            }
         } catch (error) {
             console.error('セッション詳細の読み込みに失敗しました:', error);
         }
@@ -430,5 +438,15 @@ export class ProjectManager {
             projectId: this.currentProjectId,
             sessionId: this.currentSessionId
         };
+    }
+    
+    // 現在のプロジェクトデータを取得
+    getCurrentProjectData() {
+        return this.currentProjectData;
+    }
+    
+    // 現在のセッションデータを取得
+    getCurrentSessionData() {
+        return this.currentSessionData;
     }
 }
