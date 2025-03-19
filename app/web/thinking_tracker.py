@@ -58,6 +58,15 @@ TRANSLATIONS = {
 # 現在の言語設定（デフォルトは中国語）
 CURRENT_LANGUAGE = 'zh-CN'
 
+# 言語設定を変更する関数
+def set_language(lang):
+    """言語設定を変更する"""
+    global CURRENT_LANGUAGE
+    if lang in TRANSLATIONS:
+        CURRENT_LANGUAGE = lang
+        return True
+    return False
+
 # 翻訳を取得する関数
 def t(key, lang=None):
     """指定されたキーの翻訳を返す"""
