@@ -44,6 +44,18 @@ def load_config() -> Dict[str, Any]:
     try:
         with open(TOOLS_CONFIG_FILE, 'r', encoding='utf-8') as f:
             config = json.load(f)
+            
+        # 追加: 設定が読み込めたかログ出力（機密情報はマスク）
+        log_config = {}
+        for tool, tool_config in config.items():
+            log_config[tool] = {}
+            for key, value in tool_config.items():
+                if key in ["api_key", "access_token", "secret", "password", "key"]:
+                    log_config[tool][key] = "********" if value else ""
+                else:
+                    log_config[tool][key] = value
+        
+        logger.info(f"設定ファイルを読み込みました: {json.dumps(log_config)}")
         return config
     except Exception as e:
         logger.error(f"設定ファイルの読み込みに失敗しました: {e}")
@@ -65,19 +77,49 @@ def save_config(config: Dict[str, Any]):
 def get_tool_config(tool_name: str) -> Dict[str, Any]:
     """特定のツールの設定を取得"""
     config = load_config()
-    return config.get(tool_name, {})
+    tool_config = config.get(tool_name, {})
+    
+    # ログ出力（機密情報はマスク）
+    log_config = {}
+    for key, value in tool_config.items():
+        if key in ["api_key", "access_token", "secret", "password", "key"]:
+            log_config[key] = "********" if value else ""
+        else:
+            log_config[key] = value
+    
+    logger.debug(f"ツール '{tool_name}' の設定を取得: {json.dumps(log_config)}")
+    return tool_config
 
 
 def update_tool_config(tool_name: str, tool_config: Dict[str, Any]):
     """特定のツールの設定を更新"""
     config = load_config()
     config[tool_name] = tool_config
+    
+    # ログ出力（機密情報はマスク）
+    log_config = {}
+    for key, value in tool_config.items():
+        if key in ["api_key", "access_token", "secret", "password", "key"]:
+            log_config[key] = "設定あり" if value else ""
+        else:
+            log_config[key] = value
+    
+    logger.info(f"ツール '{tool_name}' の設定を更新: {json.dumps(log_config)}")
     save_config(config)
 
 
 def get_env_setting(key: str, default: Optional[str] = None) -> Optional[str]:
     """環境変数から設定を取得（設定ファイルの値を上書きする場合などに使用）"""
-    return os.environ.get(key, default)
+    value = os.environ.get(key, default)
+    
+    # 環境変数が設定されていればログ出力（機密情報はマスク）
+    if value is not None and value != default:
+        if any(secret in key.lower() for secret in ["token", "key", "secret", "password"]):
+            logger.info(f"環境変数 '{key}' が設定されています")
+        else:
+            logger.info(f"環境変数 '{key}' = '{value}' が設定されています")
+    
+    return value
 
 
 # 環境変数からの設定をチェック（セキュリティのため、APIキーなどを環境変数に保存することを推奨）
@@ -87,11 +129,12 @@ def check_env_settings():
     updated = False
     
     # GitHub設定の確認
-    github_token = os.environ.get("GITHUB_ACCESS_TOKEN")
+    github_token = os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN")
     if github_token and config.get("github", {}).get("access_token") != github_token:
         if "github" not in config:
             config["github"] = {}
         config["github"]["access_token"] = github_token
+        logger.info("環境変数 GITHUB_PERSONAL_ACCESS_TOKEN から設定を更新しました")
         updated = True
     
     github_username = os.environ.get("GITHUB_USERNAME")
@@ -99,14 +142,16 @@ def check_env_settings():
         if "github" not in config:
             config["github"] = {}
         config["github"]["username"] = github_username
+        logger.info(f"環境変数 GITHUB_USERNAME から設定を更新しました: {github_username}")
         updated = True
     
     # Web検索設定の確認
-    web_search_api_key = os.environ.get("BRAVE_SEARCH_API_KEY")
-    if web_search_api_key and config.get("web_search", {}).get("api_key") != web_search_api_key:
+    brave_search_api_key = os.environ.get("BRAVE_API_KEY")
+    if brave_search_api_key and config.get("web_search", {}).get("api_key") != brave_search_api_key:
         if "web_search" not in config:
             config["web_search"] = {}
-        config["web_search"]["api_key"] = web_search_api_key
+        config["web_search"]["api_key"] = brave_search_api_key
+        logger.info("環境変数 BRAVE_API_KEY から設定を更新しました")
         updated = True
     
     # 更新があれば保存
