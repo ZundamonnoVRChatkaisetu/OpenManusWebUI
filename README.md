@@ -22,18 +22,18 @@ OpenManus Web UIは、高度なAIアシスタント機能を備えたウェブ�
 
 ### 方法1: condaを使用
 
-1. 新しいconda環境を作成:
-
-```bash
-conda create -n open_manus python=3.12
-conda activate open_manus
-```
-
-2. リポジトリをクローン:
+1. リポジトリをクローン:
 
 ```bash
 git clone https://github.com/ZundamonnoVRChatkaisetu/OpenManusWebUI.git
 cd OpenManusWebUI
+```
+
+2. 新しいPython環境を作成:
+
+```bash
+python3.12 -m venv venv
+.\venv\Scripts\activate  
 ```
 
 3. 依存ライブラリをインストール:
@@ -85,19 +85,23 @@ cp config/config.example.toml config/config.toml
 2. `config/config.toml`を編集してAPIキーを追加し設定をカスタマイズ:
 
 ```toml
-# グローバルLLM設定
+# Global LLM configuration
 [llm]
-model = "gpt-4o"
-base_url = "https://api.openai.com/v1"
-api_key = "sk-..."  # 実際のAPIキーに置き換え
+api_type = "openai"
+model = "gemma-3-12b-it" 
+base_url = "http://localhost:1234/v1"
+api_key = "dummy-key"
 max_tokens = 4096
-temperature = 0.0
+temperature = 0.7
 
-# 特定のLLMモデル向けのオプション設定
+# 同じ設定をビジョンモデルにも適用
 [llm.vision]
-model = "gpt-4o"
-base_url = "https://api.openai.com/v1"
-api_key = "sk-..."  # 実際のAPIキーに置き換え
+api_type = "openai"
+model = "gemma-3-12b-it"
+base_url = "http://localhost:1234/v1"
+api_key = "dummy-key"
+max_tokens = 4096
+temperature = 0.7
 ```
 
 ## クイックスタート
