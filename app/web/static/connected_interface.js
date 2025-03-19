@@ -14,6 +14,7 @@ class App {
     constructor() {
         this.sessionId = null;
         this.isProcessing = false;
+        this.currentProjectId = null;
 
         // 初始化各个管理器
         this.websocketManager = new WebSocketManager(this.handleWebSocketMessage.bind(this));
@@ -86,13 +87,34 @@ class App {
         });
     }
 
+    // 处理项目选择
+    handleProjectSelect(projectId) {
+        console.log(`选择项目: ${projectId}`);
+        this.currentProjectId = projectId;
+        
+        // 工作区文件管理器に選択したプロジェクトIDを設定
+        this.workspaceManager.setCurrentProjectId(projectId);
+        
+        // 项目选择后立即刷新工作区文件
+        this.loadWorkspaceFiles();
+    }
+
     // 处理会话选择
     handleSessionSelect(sessionId) {
         console.log(`选择会话: ${sessionId}`);
         this.sessionId = sessionId;
         
-        // 这里可以添加加载会话消息的逻辑
-        // 例如: this.loadSessionMessages(sessionId);
+        // セッション選択時に現在のプロジェクトIDを取得
+        const { projectId } = this.projectManager.getCurrentSession();
+        if (projectId) {
+            this.currentProjectId = projectId;
+            
+            // ワークスペースマネージャーにプロジェクトIDを設定
+            this.workspaceManager.setCurrentProjectId(projectId);
+            
+            // プロジェクト固有のファイルを表示するためリフレッシュ
+            this.loadWorkspaceFiles();
+        }
     }
 
     // 更新后端语言设置
@@ -166,6 +188,7 @@ class App {
             
             if (projectId) {
                 payload.project_id = projectId;
+                this.currentProjectId = projectId;
             }
             
             if (sessionId) {
@@ -290,14 +313,19 @@ class App {
     // 加载工作区文件
     async loadWorkspaceFiles() {
         try {
-            const response = await fetch('/api/files');
-            if (!response.ok) {
-                throw new Error(t('api_error', { status: response.status }));
+            // 現在選択されているプロジェクトIDに基づいてファイルを取得
+            // プロジェクトIDはProjectManagerから取得
+            const { projectId } = this.projectManager.getCurrentSession();
+            
+            // workspaceManagerにプロジェクトIDを設定
+            if (projectId) {
+                this.workspaceManager.setCurrentProjectId(projectId);
+            } else {
+                this.workspaceManager.setCurrentProjectId(null);
             }
-
-            const data = await response.json();
-            this.workspaceManager.updateWorkspaces(data.workspaces);
-
+            
+            // ファイル取得はworkspaceManagerに任せる
+            await this.workspaceManager.loadWorkspaceFiles();
         } catch (error) {
             console.error(t('load_workspace_error', { message: error.message }), error);
         }
