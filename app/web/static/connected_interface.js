@@ -6,6 +6,7 @@ import { ChatManager } from '/static/connected_chatManager.js';
 import { ThinkingManager } from '/static/connected_thinkingManager.js';
 import { WorkspaceManager } from '/static/connected_workspaceManager.js';
 import { FileViewerManager } from '/static/connected_fileViewerManager.js';
+import { ProjectManager } from '/static/project_manager.js';
 import { initLanguage, setLanguage, updatePageTexts, t } from '/static/i18n.js';
 
 // 主应用类
@@ -20,6 +21,7 @@ class App {
         this.thinkingManager = new ThinkingManager();
         this.workspaceManager = new WorkspaceManager(this.handleFileClick.bind(this));
         this.fileViewerManager = new FileViewerManager();
+        this.projectManager = new ProjectManager(this.handleSessionSelect.bind(this));
 
         // 绑定UI事件
         this.bindEvents();
@@ -44,6 +46,7 @@ class App {
         this.thinkingManager.init();
         this.workspaceManager.init();
         this.fileViewerManager.init();
+        this.projectManager.init();
 
         // 加载工作区文件
         this.loadWorkspaceFiles();
@@ -81,6 +84,15 @@ class App {
             this.updateDynamicTexts();
             this.updateBackendLanguage(selectedLang); // 更新后端语言设置
         });
+    }
+
+    // 处理会话选择
+    handleSessionSelect(sessionId) {
+        console.log(`选择会话: ${sessionId}`);
+        this.sessionId = sessionId;
+        
+        // 这里可以添加加载会话消息的逻辑
+        // 例如: this.loadSessionMessages(sessionId);
     }
 
     // 更新后端语言设置
@@ -144,13 +156,28 @@ class App {
         document.getElementById('status-indicator').textContent = t('processing_request');
 
         try {
-            // 发送API请求创建新会话
+            // 获取当前项目和会话信息
+            const { projectId, sessionId } = this.projectManager.getCurrentSession();
+            
+            // 发送API请求创建新会话，如果有项目和会话ID则包含
+            const payload = { 
+                prompt: message
+            };
+            
+            if (projectId) {
+                payload.project_id = projectId;
+            }
+            
+            if (sessionId) {
+                payload.session_id = sessionId;
+            }
+            
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ prompt: message }),
+                body: JSON.stringify(payload),
             });
 
             if (!response.ok) {
