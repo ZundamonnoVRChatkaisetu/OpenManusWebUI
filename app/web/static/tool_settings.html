@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ツール設定 - OpenManus WebUI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 20px;
+            padding-bottom: 40px;
+        }
+        .card {
+            margin-bottom: 20px;
+        }
+        .tool-description {
+            margin-bottom: 15px;
+        }
+        .btn-verify {
+            margin-left: 10px;
+        }
+        .status-message {
+            margin-top: 10px;
+        }
+        .tool-instructions {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        pre {
+            background-color: #f1f1f1;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .nav-tabs {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-4">OpenManus WebUI ツール設定</h1>
+        
+        <ul class="nav nav-tabs" id="toolTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab" aria-controls="settings" aria-selected="true">設定</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="instructions-tab" data-bs-toggle="tab" data-bs-target="#instructions" type="button" role="tab" aria-controls="instructions" aria-selected="false">使い方</button>
+            </li>
+        </ul>
+        
+        <div class="tab-content" id="toolTabsContent">
+            <!-- 設定タブ -->
+            <div class="tab-pane fade show active" id="settings" role="tabpanel" aria-labelledby="settings-tab">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>GitHub設定</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="tool-description">
+                                    GitHub APIと連携してリポジトリの検索、ファイル操作、イシュー管理などを行います。
+                                </p>
+                                
+                                <form id="githubSettingsForm">
+                                    <div class="mb-3">
+                                        <label for="github_access_token" class="form-label">アクセストークン</label>
+                                        <div class="input-group">
+                                            <input type="password" class="form-control" id="github_access_token" name="access_token" placeholder="ghp_..." required>
+                                            <button class="btn btn-outline-secondary" type="button" id="toggleGithubToken">表示</button>
+                                        </div>
+                                        <div class="form-text">GitHubのPersonal Access Tokenを入力してください。リポジトリアクセス権限が必要です。</div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="github_username" class="form-label">ユーザー名</label>
+                                        <input type="text" class="form-control" id="github_username" name="username" placeholder="GitHubのユーザー名">
+                                    </div>
+                                    
+                                    <div class="d-flex">
+                                        <button type="submit" class="btn btn-primary" id="saveGithubSettings">保存</button>
+                                        <button type="button" class="btn btn-secondary btn-verify" id="verifyGithubSettings">接続テスト</button>
+                                    </div>
+                                    
+                                    <div class="status-message mt-2" id="githubStatusMessage"></div>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Web検索設定</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="tool-description">
+                                    Web検索APIと連携してオンライン情報を検索します。（将来の拡張用）
+                                </p>
+                                
+                                <form id="webSearchSettingsForm">
+                                    <div class="mb-3">
+                                        <label for="web_search_api_key" class="form-label">API Key</label>
+                                        <div class="input-group">
+                                            <input type="password" class="form-control" id="web_search_api_key" name="api_key" placeholder="API Key">
+                                            <button class="btn btn-outline-secondary" type="button" id="toggleWebSearchKey">表示</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="web_search_cse_id" class="form-label">検索エンジンID</label>
+                                        <input type="text" class="form-control" id="web_search_cse_id" name="cse_id" placeholder="カスタム検索エンジンID">
+                                    </div>
+                                    
+                                    <button type="submit" class="btn btn-primary" id="saveWebSearchSettings">保存</button>
+                                    <div class="status-message mt-2" id="webSearchStatusMessage"></div>
+                                    <div class="form-text mt-3">※将来の機能のための設定です。現在は実装されていません。</div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 使い方タブ -->
+            <div class="tab-pane fade" id="instructions" role="tabpanel" aria-labelledby="instructions-tab">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>ツール使用方法</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>OpenManus WebUIでは、プロンプト内でツールコマンドを使用できます。以下のようにして様々な外部サービスと連携できます。</p>
+                        
+                        <div class="tool-instructions" id="toolInstructions">
+                            <p>読み込み中...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center mt-4">
+            <a href="/" class="btn btn-outline-primary">ホームに戻る</a>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 設定の読み込みと保存
+        document.addEventListener('DOMContentLoaded', function() {
+            // GitHub設定の読み込み
+            fetch('/api/tools/config/github')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.config) {
+                        document.getElementById('github_access_token').value = data.config.access_token || '';
+                        document.getElementById('github_username').value = data.config.username || '';
+                    }
+                })
+                .catch(error => {
+                    console.error('GitHub設定の読み込みエラー:', error);
+                });
+            
+            // Web検索設定の読み込み
+            fetch('/api/tools/config/web_search')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.config) {
+                        document.getElementById('web_search_api_key').value = data.config.api_key || '';
+                        document.getElementById('web_search_cse_id').value = data.config.cse_id || '';
+                    }
+                })
+                .catch(error => {
+                    console.error('Web検索設定の読み込みエラー:', error);
+                });
+            
+            // ツール使用方法の読み込み
+            fetch('/api/tools/instructions')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.instructions) {
+                        const instructionsHtml = convertMarkdownToHtml(data.instructions);
+                        document.getElementById('toolInstructions').innerHTML = instructionsHtml;
+                    }
+                })
+                .catch(error => {
+                    console.error('ツール使用方法の読み込みエラー:', error);
+                    document.getElementById('toolInstructions').innerHTML = '<p>ツール使用方法の読み込みに失敗しました。</p>';
+                });
+            
+            // GitHub設定の保存
+            document.getElementById('githubSettingsForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const config = {
+                    access_token: document.getElementById('github_access_token').value,
+                    username: document.getElementById('github_username').value
+                };
+                
+                saveConfig('github', config, 'githubStatusMessage');
+            });
+            
+            // Web検索設定の保存
+            document.getElementById('webSearchSettingsForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const config = {
+                    api_key: document.getElementById('web_search_api_key').value,
+                    cse_id: document.getElementById('web_search_cse_id').value
+                };
+                
+                saveConfig('web_search', config, 'webSearchStatusMessage');
+            });
+            
+            // GitHubアクセストークンのトグル表示/非表示
+            document.getElementById('toggleGithubToken').addEventListener('click', function() {
+                const input = document.getElementById('github_access_token');
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    this.textContent = '隠す';
+                } else {
+                    input.type = 'password';
+                    this.textContent = '表示';
+                }
+            });
+            
+            // Web検索APIキーのトグル表示/非表示
+            document.getElementById('toggleWebSearchKey').addEventListener('click', function() {
+                const input = document.getElementById('web_search_api_key');
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    this.textContent = '隠す';
+                } else {
+                    input.type = 'password';
+                    this.textContent = '表示';
+                }
+            });
+            
+            // GitHub設定の検証
+            document.getElementById('verifyGithubSettings').addEventListener('click', function() {
+                const statusElement = document.getElementById('githubStatusMessage');
+                statusElement.innerHTML = '<div class="alert alert-info">接続テスト中...</div>';
+                
+                fetch('/api/tools/verify/github')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            statusElement.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+                        } else {
+                            statusElement.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('GitHub設定の検証エラー:', error);
+                        statusElement.innerHTML = '<div class="alert alert-danger">接続テストに失敗しました</div>';
+                    });
+            });
+        });
+        
+        // 設定の保存共通関数
+        function saveConfig(toolName, config, statusElementId) {
+            const statusElement = document.getElementById(statusElementId);
+            statusElement.innerHTML = '<div class="alert alert-info">保存中...</div>';
+            
+            fetch(`/api/tools/config/${toolName}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ config: config })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        statusElement.innerHTML = '<div class="alert alert-success">設定を保存しました</div>';
+                    } else {
+                        statusElement.innerHTML = `<div class="alert alert-danger">保存エラー: ${data.detail || 'エラーが発生しました'}</div>`;
+                    }
+                })
+                .catch(error => {
+                    console.error(`${toolName}設定の保存エラー:`, error);
+                    statusElement.innerHTML = '<div class="alert alert-danger">保存中にエラーが発生しました</div>';
+                });
+        }
+        
+        // Markdown→HTML変換の簡易実装
+        function convertMarkdownToHtml(markdown) {
+            let html = markdown;
+            
+            // コードブロック
+            html = html.replace(/```(.*?)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+            
+            // インラインコード
+            html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+            
+            // 見出し
+            html = html.replace(/^### (.*?)$/gm, '<h5>$1</h5>');
+            html = html.replace(/^## (.*?)$/gm, '<h4>$1</h4>');
+            html = html.replace(/^# (.*?)$/gm, '<h3>$1</h3>');
+            
+            // リスト
+            html = html.replace(/^- (.*?)$/gm, '<li>$1</li>');
+            html = html.replace(/(<li>.*?<\/li>\n)+/g, '<ul>$&</ul>');
+            
+            // 段落
+            html = html.replace(/^(?!<[uh]|<li|<pre)(.+)$/gm, '<p>$1</p>');
+            
+            // 空行
+            html = html.replace(/\n\n/g, '<br>');
+            
+            return html;
+        }
+    </script>
+</body>
+</html>
