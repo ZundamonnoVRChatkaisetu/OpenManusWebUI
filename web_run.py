@@ -7,6 +7,7 @@ import signal
 import threading
 import platform
 from pathlib import Path
+import io
 
 import uvicorn
 
@@ -68,7 +69,7 @@ def start_lmstudio_server(lm_port=1234, no_gui=True):
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,
+            text=False,  # バイナリモードで出力を取得
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if platform.system() == "Windows" else 0
         )
         
@@ -80,7 +81,9 @@ def start_lmstudio_server(lm_port=1234, no_gui=True):
             
             # 標準出力と標準エラーを非同期で読み取る関数
             def read_output(pipe, prefix):
-                for line in iter(pipe.readline, ''):
+                # バイナリストリームからUTF-8でデコード
+                text_stream = io.TextIOWrapper(pipe, encoding='utf-8', errors='replace')
+                for line in text_stream:
                     if line:
                         # エラーメッセージをフィルタリング
                         if "MaxListenersExceededWarning" not in line and "lib-bad" not in line:
