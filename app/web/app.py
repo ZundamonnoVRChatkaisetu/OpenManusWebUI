@@ -62,6 +62,10 @@ cancel_events: Dict[str, asyncio.Event] = {}
 WORKSPACE_ROOT = Path(__file__).parent.parent.parent / "workspace"
 WORKSPACE_ROOT.mkdir(exist_ok=True)
 
+# プロジェクト専用ワークスペース
+PROJECT_WORKSPACE_ROOT = Path(__file__).parent.parent.parent / "project_workspace"
+PROJECT_WORKSPACE_ROOT.mkdir(exist_ok=True)
+
 # 日志目录
 LOGS_DIR = Path(__file__).parent.parent.parent / "logs"
 LOGS_DIR.mkdir(exist_ok=True)
@@ -75,9 +79,21 @@ active_log_monitors: Dict[str, LogFileMonitor] = {}
 
 
 # 创建工作区目录的函数
-def create_workspace(session_id: str) -> Path:
+def create_workspace(session_id: str, project_id: Optional[str] = None) -> Path:
     """为会话创建工作区目录"""
-    # 简化session_id作为目录名
+    # プロジェクトIDが指定されている場合、プロジェクト専用ワークスペースを使用
+    if project_id:
+        # プロジェクト用ディレクトリを確保
+        project_dir = PROJECT_WORKSPACE_ROOT / f"project_{project_id[:8]}"
+        project_dir.mkdir(exist_ok=True)
+        
+        # セッション用サブディレクトリを作成
+        session_dir = project_dir / f"session_{session_id[:8]}"
+        session_dir.mkdir(exist_ok=True)
+        
+        return session_dir
+    
+    # 従来の方法（プロジェクトIDなし）
     job_id = f"job_{session_id[:8]}"
     workspace_dir = WORKSPACE_ROOT / job_id
     workspace_dir.mkdir(exist_ok=True)
@@ -172,6 +188,10 @@ async def create_project(project: ProjectCreate):
     project_data["created_at"] = datetime.fromisoformat(project_data["created_at"])
     project_data["updated_at"] = datetime.fromisoformat(project_data["updated_at"])
     
+    # プロジェクト用ディレクトリを作成
+    project_dir = PROJECT_WORKSPACE_ROOT / f"project_{project_id[:8]}"
+    project_dir.mkdir(exist_ok=True)
+    
     return project_data
 
 @app.get("/api/projects/{project_id}", response_model=ProjectWithSessions)
@@ -248,9 +268,9 @@ async def create_session_endpoint(project_id: str, session_create: SessionCreate
     
     session_id = str(uuid.uuid4())
     
-    # ワークスペースディレクトリを作成
-    workspace_dir = create_workspace(session_id)
-    workspace_path = str(workspace_dir.relative_to(WORKSPACE_ROOT))
+    # プロジェクト専用のワークスペースディレクトリを作成
+    workspace_dir = create_workspace(session_id, project_id)
+    workspace_path = str(workspace_dir)
     
     success = db.create_session(
         session_id, 
@@ -345,9 +365,9 @@ async def create_chat_session(
         # セッションのタイトルを設定（デフォルトはプロンプトの最初の20文字）
         title = chat_req.prompt[:20] + ("..." if len(chat_req.prompt) > 20 else "")
         
-        # ワークスペースディレクトリを作成
-        workspace_dir = create_workspace(session_id)
-        workspace_path = str(workspace_dir.relative_to(WORKSPACE_ROOT))
+        # プロジェクト専用のワークスペースディレクトリを作成
+        workspace_dir = create_workspace(session_id, project_id)
+        workspace_path = str(workspace_dir)
         
         # セッションをデータベースに保存
         db.create_session(session_id, project_id, title, workspace_path)
@@ -359,13 +379,17 @@ async def create_chat_session(
         project_name = "プロジェクト " + datetime.now().strftime("%Y-%m-%d %H:%M")
         db.create_project(project_id, project_name)
         
+        # プロジェクト用ディレクトリを作成
+        project_dir = PROJECT_WORKSPACE_ROOT / f"project_{project_id[:8]}"
+        project_dir.mkdir(exist_ok=True)
+        
         # 新しいセッションを作成
         session_id = str(uuid.uuid4())
         title = chat_req.prompt[:20] + ("..." if len(chat_req.prompt) > 20 else "")
         
-        # ワークスペースディレクトリを作成
-        workspace_dir = create_workspace(session_id)
-        workspace_path = str(workspace_dir.relative_to(WORKSPACE_ROOT))
+        # プロジェクト専用のワークスペースディレクトリを作成
+        workspace_dir = create_workspace(session_id, project_id)
+        workspace_path = str(workspace_dir)
         
         # セッションをデータベースに保存
         db.create_session(session_id, project_id, title, workspace_path)
@@ -390,10 +414,10 @@ async def create_chat_session(
     db.create_message(message_id, session_id, "user", chat_req.prompt)
     
     # 既存のactive_sessionsを更新
-    workspace_dir = WORKSPACE_ROOT / workspace_path
+    workspace_dir = Path(workspace_path)
     active_sessions[session_id]["workspace"] = workspace_path
 
-    background_tasks.add_task(process_prompt, session_id, chat_req.prompt)
+    background_tasks.add_task(process_prompt, session_id, chat_req.prompt, project_id)
     return {
         "session_id": session_id,
         "project_id": project_id,
@@ -677,59 +701,105 @@ from app.agent.llm_wrapper import LLMCallbackWrapper
 
 # 修改文件API，支持工作区目录
 @app.get("/api/files")
-async def get_generated_files():
-    """获取所有工作区目录和文件"""
+async def get_generated_files(project_id: Optional[str] = None):
+    """获取工作区目录和文件、プロジェクトIDが指定された場合はプロジェクト専用ファイルを返す"""
     result = []
 
-    # 获取所有工作区目录
-    workspaces = list(WORKSPACE_ROOT.glob("job_*"))
-    workspaces.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-
-    for workspace in workspaces:
-        workspace_name = workspace.name
-        # 获取工作区内所有文件并按修改时间排序
-        files = []
-        with os.scandir(workspace) as it:
-            for entry in it:
-                if entry.is_file() and entry.name.split(".")[-1] in [
-                    "txt",
-                    "md",
-                    "html",
-                    "css",
-                    "js",
-                    "py",
-                    "json",
-                ]:
-                    files.append(entry)
-        # 按修改时间倒序排序
-        files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
-
-        # 如果有文件，添加该工作区
-        if files:
-            workspace_item = {
-                "name": workspace_name,
-                "path": str(workspace.relative_to(Path(__file__).parent.parent.parent)),
-                "modified": workspace.stat().st_mtime,
-                "files": [],
-            }
-
-            # 添加工作区下的文件
-            for file in sorted(files, key=lambda p: p.name):
-                workspace_item["files"].append(
-                    {
-                        "name": file.name,
-                        "path": str(
-                            Path(file.path).relative_to(
-                                Path(__file__).parent.parent.parent
-                            )
-                        ),
-                        "type": Path(file.path).suffix[1:],  # 去掉.的扩展名
-                        "size": file.stat().st_size,
-                        "modified": file.stat().st_mtime,
+    if project_id:
+        # プロジェクト専用ワークスペースからファイルを取得
+        project_dir = PROJECT_WORKSPACE_ROOT / f"project_{project_id[:8]}"
+        if project_dir.exists():
+            # プロジェクトディレクトリ内のセッションディレクトリをすべて取得
+            session_dirs = list(project_dir.glob("session_*"))
+            session_dirs.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+            
+            for session_dir in session_dirs:
+                workspace_name = session_dir.name
+                # セッションディレクトリ内のファイルを取得
+                files = []
+                with os.scandir(session_dir) as it:
+                    for entry in it:
+                        if entry.is_file() and entry.name.split(".")[-1] in [
+                            "txt", "md", "html", "css", "js", "py", "json",
+                        ]:
+                            files.append(entry)
+                
+                # 修正時間でソート
+                files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+                
+                # ファイルがある場合、そのセッションを追加
+                if files:
+                    workspace_item = {
+                        "name": workspace_name,
+                        "path": str(session_dir),
+                        "modified": session_dir.stat().st_mtime,
+                        "files": [],
                     }
-                )
+                    
+                    # セッションディレクトリ内のファイルを追加
+                    for file in sorted(files, key=lambda p: p.name):
+                        workspace_item["files"].append(
+                            {
+                                "name": file.name,
+                                "path": str(Path(file.path)),
+                                "type": Path(file.path).suffix[1:],  # 拡張子
+                                "size": file.stat().st_size,
+                                "modified": file.stat().st_mtime,
+                            }
+                        )
+                    
+                    result.append(workspace_item)
+    else:
+        # 従来のワークスペース (project_idなし)の場合
+        # 获取所有工作区目录
+        workspaces = list(WORKSPACE_ROOT.glob("job_*"))
+        workspaces.sort(key=lambda p: p.stat().st_mtime, reverse=True)
 
-            result.append(workspace_item)
+        for workspace in workspaces:
+            workspace_name = workspace.name
+            # 获取工作区内所有文件并按修改时间排序
+            files = []
+            with os.scandir(workspace) as it:
+                for entry in it:
+                    if entry.is_file() and entry.name.split(".")[-1] in [
+                        "txt",
+                        "md",
+                        "html",
+                        "css",
+                        "js",
+                        "py",
+                        "json",
+                    ]:
+                        files.append(entry)
+            # 按修改时间倒序排序
+            files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+
+            # 如果有文件，添加该工作区
+            if files:
+                workspace_item = {
+                    "name": workspace_name,
+                    "path": str(workspace.relative_to(Path(__file__).parent.parent.parent)),
+                    "modified": workspace.stat().st_mtime,
+                    "files": [],
+                }
+
+                # 添加工作区下的文件
+                for file in sorted(files, key=lambda p: p.name):
+                    workspace_item["files"].append(
+                        {
+                            "name": file.name,
+                            "path": str(
+                                Path(file.path).relative_to(
+                                    Path(__file__).parent.parent.parent
+                                )
+                            ),
+                            "type": Path(file.path).suffix[1:],  # 去掉.的扩展名
+                            "size": file.stat().st_size,
+                            "modified": file.stat().st_mtime,
+                        }
+                    )
+
+                result.append(workspace_item)
 
     return {"workspaces": result}
 
@@ -805,10 +875,17 @@ async def get_file_content(file_path: str):
     # 安全检查，防止目录遍历攻击
     root_dir = Path(__file__).parent.parent.parent
     full_path = root_dir / file_path
+    
+    # 注：file_pathが絶対パスの場合の対応
+    if os.path.isabs(file_path):
+        full_path = Path(file_path)
+    else:
+        full_path = root_dir / file_path
 
     # 确保文件在项目目录内
     try:
-        full_path.relative_to(root_dir)
+        if not os.path.commonpath([root_dir, full_path]).startswith(str(root_dir)):
+            raise ValueError("File path outside of project root")
     except ValueError:
         raise HTTPException(status_code=403, detail="Access denied")
 
@@ -834,21 +911,28 @@ async def get_file_content(file_path: str):
 
 
 # 修改process_prompt函数，处理工作区
-async def process_prompt(session_id: str, prompt: str):
-    # 获取会话工作区
+async def process_prompt(session_id: str, prompt: str, project_id: Optional[str] = None):
+    # プロジェクトとセッションの情報を取得
     workspace_dir = None
-    if session_id in active_sessions and "workspace" in active_sessions[session_id]:
-        workspace_path = active_sessions[session_id]["workspace"]
-        workspace_dir = WORKSPACE_ROOT / workspace_path
+    session = db.get_session(session_id)
+    
+    if session:
+        workspace_path = session["workspace_path"]
+        # パスがstringなのでPathオブジェクトに変換
+        workspace_dir = Path(workspace_path)
+        # ディレクトリが存在しない場合は作成
         os.makedirs(workspace_dir, exist_ok=True)
-
-    # 如果没有工作区，创建一个
-    if not workspace_dir:
-        workspace_dir = create_workspace(session_id)
-        if session_id in active_sessions:
-            active_sessions[session_id]["workspace"] = str(
-                workspace_dir.relative_to(WORKSPACE_ROOT)
-            )
+    else:
+        # 参考：セッションデータがない場合の互換性維持
+        if session_id in active_sessions and "workspace" in active_sessions[session_id]:
+            workspace_path = active_sessions[session_id]["workspace"]
+            workspace_dir = Path(workspace_path)
+            os.makedirs(workspace_dir, exist_ok=True)
+        # それでもワークスペースディレクトリがない場合は作成
+        if not workspace_dir:
+            workspace_dir = create_workspace(session_id, project_id)
+            if session_id in active_sessions:
+                active_sessions[session_id]["workspace"] = str(workspace_dir)
 
     # 设置当前工作目录为工作区
     original_cwd = os.getcwd()
