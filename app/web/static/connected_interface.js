@@ -32,7 +32,12 @@ class App {
         // 初始化语言设置
         const currentLang = initLanguage();
         document.getElementById('language-selector').value = currentLang;
+        
+        // 更新前端页面文本
         updatePageTexts();
+        
+        // 更新后端语言设置
+        this.updateBackendLanguage(currentLang);
 
         // 初始化各个管理器
         this.chatManager.init();
@@ -74,7 +79,27 @@ class App {
             setLanguage(selectedLang);
             updatePageTexts();
             this.updateDynamicTexts();
+            this.updateBackendLanguage(selectedLang); // 更新后端语言设置
         });
+    }
+
+    // 更新后端语言设置
+    async updateBackendLanguage(language) {
+        try {
+            const response = await fetch('/api/set_language', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ language: language }),
+            });
+
+            if (!response.ok) {
+                console.error(`更新后端语言设置失败: ${response.status}`);
+            }
+        } catch (error) {
+            console.error('更新后端语言设置出错:', error);
+        }
     }
 
     // 更新动态生成的文本
@@ -85,6 +110,10 @@ class App {
             statusIndicator.textContent = t('processing_request');
         } else if (statusIndicator.textContent.includes('处理已停止')) {
             statusIndicator.textContent = t('processing_stopped');
+        } else if (statusIndicator.textContent.includes('已连接到服务器')) {
+            statusIndicator.textContent = t('connection_established');
+        } else if (statusIndicator.textContent.includes('已送接到服务器')) {
+            statusIndicator.textContent = t('sent_to_server');
         }
 
         // 更新记录计数
@@ -105,7 +134,7 @@ class App {
     // 处理发送消息
     async handleSendMessage(message) {
         if (this.isProcessing) {
-            console.log('正在处理中，请等待...');
+            console.log(t('processing_in_progress'));
             return;
         }
 
