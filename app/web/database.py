@@ -219,6 +219,25 @@ def update_session(session_id: str, title: Optional[str] = None, workspace_path:
     finally:
         conn.close()
 
+def delete_session(session_id: str) -> bool:
+    """セッションを削除する"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # 関連するメッセージを先に削除
+        cursor.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
+        
+        # セッション自体を削除
+        cursor.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+        
+        conn.commit()
+        return True
+    except sqlite3.Error as e:
+        print(f"セッション削除エラー: {str(e)}")
+        return False
+    finally:
+        conn.close()
+
 def get_project_sessions(project_id: str) -> List[Dict]:
     """プロジェクトに属するすべてのセッションを取得する"""
     conn = get_db_connection()
