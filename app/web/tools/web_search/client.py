@@ -1,7 +1,7 @@
 """
 Web検索APIクライアント
 
-Google Custom Search JSON API クライアント
+Brave Search API クライアント
 """
 import aiohttp
 import json
@@ -13,63 +13,64 @@ from ..config import get_tool_config
 logger = logging.getLogger(__name__)
 
 class WebSearchClient:
-    """Google Custom Search JSON APIクライアント"""
+    """Brave Search APIクライアント"""
     
-    BASE_URL = "https://www.googleapis.com/customsearch/v1"
+    BASE_URL = "https://api.search.brave.com/res/v1/web/search"
     
     def __init__(self):
         """クライアントの初期化"""
         config = get_tool_config('web_search')
         self.api_key = config.get('api_key', '')
-        self.cse_id = config.get('cse_id', '')
         
         if not self.api_key:
-            logger.warning("Web検索APIキーが設定されていません")
-        if not self.cse_id:
-            logger.warning("Web検索カスタム検索エンジンIDが設定されていません")
+            logger.warning("Brave Search APIキーが設定されていません")
     
     async def search(self, 
                     query: str, 
-                    num_results: int = 5, 
-                    start_index: int = 1) -> Dict[str, Any]:
+                    count: int = 5, 
+                    offset: int = 0) -> Dict[str, Any]:
         """
         検索クエリを実行し、結果を返します
         
         Args:
             query: 検索クエリ
-            num_results: 取得する結果の数 (最大10)
-            start_index: 検索結果の開始インデックス (1から始まる)
+            count: 取得する結果の数 (最大20)
+            offset: 検索結果の開始インデックス (ページネーション用)
             
         Returns:
             検索結果の辞書
         """
-        if not self.api_key or not self.cse_id:
+        if not self.api_key:
             return {
-                "error": "Web検索APIの設定が不足しています。APIキーとカスタム検索エンジンIDを設定してください。",
+                "error": "Brave Search APIの設定が不足しています。APIキーを設定してください。",
                 "items": []
             }
         
         # API制限を守るために調整
-        if num_results > 10:
-            num_results = 10
+        if count > 20:
+            count = 20
+        
+        headers = {
+            'Accept': 'application/json',
+            'Accept-Encoding': 'gzip',
+            'X-Subscription-Token': self.api_key
+        }
         
         params = {
             'q': query,
-            'key': self.api_key,
-            'cx': self.cse_id,
-            'num': num_results,
-            'start': start_index
+            'count': count,
+            'offset': offset
         }
         
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(self.BASE_URL, params=params) as response:
+                async with session.get(self.BASE_URL, params=params, headers=headers) as response:
                     if response.status == 200:
                         results = await response.json()
                         return results
                     else:
                         error_text = await response.text()
-                        logger.error(f"Web検索APIエラー: {response.status} - {error_text}")
+                        logger.error(f"Brave Search APIエラー: {response.status} - {error_text}")
                         return {
                             "error": f"API呼び出し中にエラーが発生しました: {response.status}",
                             "details": error_text,
@@ -87,7 +88,7 @@ class WebSearchClient:
         API結果をフォーマットして標準化された結果リストを返します
         
         Args:
-            results: Google Custom Search APIからの結果
+            results: Brave Search APIからの結果
             
         Returns:
             フォーマットされた検索結果リスト
@@ -97,14 +98,14 @@ class WebSearchClient:
         if "error" in results:
             return [{"title": "エラー", "link": "", "snippet": results["error"]}]
         
-        items = results.get("items", [])
-        for item in items:
+        web_results = results.get("web", {}).get("results", [])
+        for item in web_results:
             formatted_results.append({
                 "title": item.get("title", ""),
-                "link": item.get("link", ""),
-                "snippet": item.get("snippet", ""),
-                "displayLink": item.get("displayLink", ""),
-                "source": "Google"
+                "link": item.get("url", ""),
+                "snippet": item.get("description", ""),
+                "displayLink": item.get("display_url", ""),
+                "source": "Brave"
             })
         
         return formatted_results
