@@ -5,9 +5,13 @@ from fastapi import APIRouter, HTTPException, Depends, Query, Body
 from typing import Dict, List, Any, Optional
 from pydantic import BaseModel
 import json
+import logging
 
 from .tool_manager import ToolManager
 from .config import get_tool_config, update_tool_config
+
+# ロガー設定
+logger = logging.getLogger(__name__)
 
 # ルーター
 router = APIRouter(prefix="/api/tools", tags=["tools"])
@@ -70,29 +74,48 @@ async def process_text(text: str = Body(..., embed=True)):
 @router.get("/config/{tool_name}")
 async def get_config(tool_name: str):
     """ツール設定を取得"""
+    logger.info(f"ツール設定取得リクエスト: {tool_name}")
     config = get_tool_config(tool_name)
+    
+    # 設定をログに出力（APIキーや秘密情報は除く）
+    log_config = config.copy() if config else {}
+    sensitive_keys = ["api_key", "access_token", "secret", "password", "key"]
+    for key in sensitive_keys:
+        if key in log_config:
+            log_config[key] = "********" if log_config[key] else ""
+    logger.info(f"ツール設定の内容: {json.dumps(log_config)}")
     
     # 機密情報を削除したコピーを作成
     safe_config = config.copy() if config else {}
     
     # APIキーやトークンなどの機密情報をマスク
-    sensitive_keys = ["api_key", "access_token", "secret", "password", "key"]
     for key in sensitive_keys:
         if key in safe_config:
             safe_config[key] = "********" if safe_config[key] else ""
     
-    return {
+    response = {
         "tool": tool_name,
         "config": safe_config
     }
+    logger.info(f"ツール設定レスポンス: {json.dumps(response)}")
+    return response
 
 
 @router.put("/config/{tool_name}")
 async def update_config(tool_name: str, request: ToolConfigUpdateRequest):
     """ツール設定を更新"""
+    logger.info(f"ツール設定更新リクエスト: {tool_name}")
     try:
         # 既存の設定を取得
         current_config = get_tool_config(tool_name)
+        
+        # リクエスト内容をログに出力（APIキーや秘密情報は除く）
+        log_config = request.config.copy()
+        sensitive_keys = ["api_key", "access_token", "secret", "password", "key"]
+        for key in sensitive_keys:
+            if key in log_config:
+                log_config[key] = "********" if log_config[key] else ""
+        logger.info(f"設定更新リクエスト内容: {json.dumps(log_config)}")
         
         # 機密情報を保持（マスクされた値での更新を防止）
         for key, value in request.config.items():
@@ -102,35 +125,50 @@ async def update_config(tool_name: str, request: ToolConfigUpdateRequest):
         # 設定を更新
         update_tool_config(tool_name, request.config)
         
-        return {
+        response = {
             "success": True,
             "message": f"{tool_name} の設定を更新しました"
         }
+        logger.info(f"設定更新レスポンス: {json.dumps(response)}")
+        return response
     except Exception as e:
+        logger.error(f"設定更新エラー: {str(e)}")
         raise HTTPException(status_code=500, detail=f"設定更新エラー: {str(e)}")
 
 
 @router.post("/verify/{tool_name}")
 async def verify_tool_config(tool_name: str):
     """ツール設定の検証"""
+    logger.info(f"ツール設定検証リクエスト: {tool_name}")
     try:
         if tool_name == "github":
             # GitHubツールの検証
             from .github.client import GitHubClient
             client = GitHubClient()
             user_info = await client.get_user()
-            return {
+            
+            # ユーザー情報をログに出力
+            log_user_info = {k: v for k, v in user_info.items() if k not in ["access_token"]}
+            logger.info(f"GitHub認証成功: {json.dumps(log_user_info)}")
+            
+            response = {
                 "success": True,
                 "message": f"GitHub認証成功: {user_info.get('login')}",
                 "user": user_info
             }
+            logger.info(f"設定検証レスポンス: 成功")
+            return response
         else:
-            return {
+            response = {
                 "success": False,
                 "message": f"ツール '{tool_name}' の検証はサポートされていません"
             }
+            logger.info(f"設定検証レスポンス: {json.dumps(response)}")
+            return response
     except Exception as e:
+        error_message = f"検証エラー: {str(e)}"
+        logger.error(error_message)
         return {
             "success": False,
-            "message": f"検証エラー: {str(e)}"
+            "message": error_message
         }
