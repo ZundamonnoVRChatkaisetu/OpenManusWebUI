@@ -49,11 +49,28 @@
             font-size: 12px;
             display: none; /* デフォルトでは非表示 */
         }
+        .config-path-info {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #e9f5e9;
+            border-radius: 5px;
+            border-left: 4px solid #28a745;
+        }
+        .config-instruction {
+            margin-top: 10px;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1 class="mb-4">OpenManus WebUI ツール設定</h1>
+        
+        <div id="configPathInfo" class="config-path-info d-none">
+            <h5>設定ファイルの保存先</h5>
+            <p id="configPathText">読み込み中...</p>
+            <p class="config-instruction">この情報は設定が保存されない場合のトラブルシューティングに役立ちます。</p>
+        </div>
         
         <ul class="nav nav-tabs" id="toolTabs" role="tablist">
             <li class="nav-item" role="presentation">
@@ -187,6 +204,26 @@
             debugLog.textContent = logMessage + '\n\n' + debugLog.textContent;
         }
         
+        // 設定ファイルのパス情報を取得
+        async function fetchConfigPath() {
+            try {
+                const response = await fetch('/api/tools/config_path');
+                if (!response.ok) {
+                    throw new Error(`HTTPエラー: ${response.status}`);
+                }
+                const data = await response.json();
+                
+                if (data && data.config_path) {
+                    document.getElementById('configPathText').textContent = data.config_path;
+                    document.getElementById('configPathInfo').classList.remove('d-none');
+                    debugLog('設定パス情報を取得', data.config_path);
+                }
+            } catch (error) {
+                console.error('設定パス情報の取得エラー:', error);
+                debugLog('設定パス情報の取得エラー', error.message);
+            }
+        }
+        
         // デバッグモード切り替え
         document.getElementById('toggleDebugMode').addEventListener('click', function() {
             const debugPanel = document.getElementById('debugPanel');
@@ -194,23 +231,55 @@
                 debugPanel.style.display = 'block';
                 this.textContent = 'デバッグモード (オン)';
                 debugLog('デバッグモードが有効になりました');
+                // 設定パス情報を表示
+                document.getElementById('configPathInfo').classList.remove('d-none');
+                fetchConfigPath();
             } else {
                 debugPanel.style.display = 'none';
                 this.textContent = 'デバッグモード';
+                // 設定パス情報を非表示
+                document.getElementById('configPathInfo').classList.add('d-none');
             }
         });
         
+        // APIレスポンスをより詳細に処理する関数
+        async function handleApiResponse(response, errorMessage) {
+            debugLog('APIレスポンス処理', {
+                status: response.status,
+                statusText: response.statusText,
+                ok: response.ok
+            });
+            
+            // レスポンスのテキストを取得
+            const responseText = await response.text();
+            
+            try {
+                // JSONとしてパース
+                const data = JSON.parse(responseText);
+                debugLog('レスポンスJSONデータ', data);
+                return data;
+            } catch (e) {
+                // JSONパースに失敗した場合
+                debugLog('JSONパースエラー', {
+                    error: e.message,
+                    responseText: responseText.substring(0, 500) // 長すぎる場合は切り詰め
+                });
+                
+                throw new Error(`${errorMessage} - テキスト: ${responseText.substring(0, 100)}...`);
+            }
+        }
+        
         // 設定の読み込みと保存
         document.addEventListener('DOMContentLoaded', function() {
+            // 設定パス情報を取得
+            fetchConfigPath();
+            
             // GitHub設定の読み込み
             debugLog('GitHub設定の読み込みを開始');
             fetch('/api/tools/config/github')
                 .then(response => {
                     debugLog('GitHub設定APIレスポンス', response.status);
-                    if (!response.ok) {
-                        throw new Error(`HTTPエラー: ${response.status}`);
-                    }
-                    return response.json();
+                    return handleApiResponse(response, 'GitHub設定の読み込みに失敗');
                 })
                 .then(data => {
                     debugLog('GitHub設定データを受信', data);
@@ -239,10 +308,7 @@
             fetch('/api/tools/config/web_search')
                 .then(response => {
                     debugLog('Web検索設定APIレスポンス', response.status);
-                    if (!response.ok) {
-                        throw new Error(`HTTPエラー: ${response.status}`);
-                    }
-                    return response.json();
+                    return handleApiResponse(response, 'Web検索設定の読み込みに失敗');
                 })
                 .then(data => {
                     debugLog('Web検索設定データを受信', data);
@@ -263,7 +329,7 @@
             
             // ツール使用方法の読み込み
             fetch('/api/tools/instructions')
-                .then(response => response.json())
+                .then(response => handleApiResponse(response, 'ツール使用方法の読み込みに失敗'))
                 .then(data => {
                     if (data.instructions) {
                         const instructionsHtml = convertMarkdownToHtml(data.instructions);
@@ -346,10 +412,7 @@
                 fetch('/api/tools/verify/github')
                     .then(response => {
                         debugLog('GitHub検証APIレスポンス', response.status);
-                        if (!response.ok) {
-                            throw new Error(`HTTPエラー: ${response.status}`);
-                        }
-                        return response.json();
+                        return handleApiResponse(response, 'GitHub検証リクエストに失敗');
                     })
                     .then(data => {
                         debugLog('GitHub検証結果', data);
@@ -362,7 +425,7 @@
                     .catch(error => {
                         debugLog('GitHub検証エラー', error.message);
                         console.error('GitHub設定の検証エラー:', error);
-                        statusElement.innerHTML = '<div class="alert alert-danger">接続テストに失敗しました</div>';
+                        statusElement.innerHTML = `<div class="alert alert-danger">接続テストに失敗しました: ${error.message}</div>`;
                     });
             });
         });
@@ -383,15 +446,14 @@
             })
                 .then(response => {
                     debugLog(`${toolName}設定保存APIレスポンス`, response.status);
-                    if (!response.ok) {
-                        throw new Error(`HTTPエラー: ${response.status}`);
-                    }
-                    return response.json();
+                    return handleApiResponse(response, `${toolName}設定の保存に失敗`);
                 })
                 .then(data => {
                     debugLog(`${toolName}設定保存結果`, data);
                     if (data.success) {
                         statusElement.innerHTML = '<div class="alert alert-success">設定を保存しました</div>';
+                        // 設定パス情報を更新
+                        fetchConfigPath();
                     } else {
                         statusElement.innerHTML = `<div class="alert alert-danger">保存エラー: ${data.detail || 'エラーが発生しました'}</div>`;
                     }
@@ -399,7 +461,7 @@
                 .catch(error => {
                     debugLog(`${toolName}設定保存エラー`, error.message);
                     console.error(`${toolName}設定の保存エラー:`, error);
-                    statusElement.innerHTML = '<div class="alert alert-danger">保存中にエラーが発生しました</div>';
+                    statusElement.innerHTML = `<div class="alert alert-danger">保存中にエラーが発生しました: ${error.message}</div>`;
                 });
         }
         
