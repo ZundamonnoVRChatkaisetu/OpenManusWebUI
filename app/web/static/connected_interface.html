@@ -578,12 +578,14 @@
             display: flex;
             gap: 10px;
             margin-top: 10px;
+            flex-wrap: wrap;
         }
 
         .sidebar-buttons button {
             flex: 1;
             font-size: 0.8rem;
             padding: 5px;
+            min-width: 70px;
         }
 
         .project-details-panel {
@@ -633,6 +635,44 @@
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
             transition: opacity 0.3s;
             z-index: 1000;
+        }
+
+        .session-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .session-title-display {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .btn-danger {
+            background-color: var(--button-danger);
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background-color: #c0392b;
+        }
+
+        .btn-edit {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .btn-edit:hover:not(:disabled) {
+            background-color: #2980b9;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
         }
 
         /* 响应式设计 */
@@ -689,7 +729,9 @@
                             <!-- プロジェクトリストはJavaScriptで動的に生成 -->
                         </div>
                         <div class="sidebar-buttons">
-                            <button id="new-project-btn" class="btn-primary" data-i18n="new_project">新規プロジェクト</button>
+                            <button id="new-project-btn" class="btn-primary" data-i18n="new_project">新規</button>
+                            <button id="rename-project-btn" class="btn-edit" data-i18n="rename_project">名前変更</button>
+                            <button id="delete-project-btn" class="btn-danger" data-i18n="delete_project">削除</button>
                         </div>
                     </div>
                     
@@ -699,7 +741,9 @@
                             <!-- セッションリストはJavaScriptで動的に生成 -->
                         </div>
                         <div class="sidebar-buttons">
-                            <button id="new-session-btn" class="btn-primary" data-i18n="new_session">新規セッション</button>
+                            <button id="new-session-btn" class="btn-primary" data-i18n="new_session">新規</button>
+                            <button id="rename-session-btn" class="btn-edit" data-i18n="rename_session">名前変更</button>
+                            <button id="delete-session-btn" class="btn-danger" data-i18n="delete_session">削除</button>
                         </div>
                     </div>
                 </div>
@@ -715,6 +759,11 @@
                         <input type="text" id="project-name" class="project-name-input" placeholder="プロジェクト名" data-i18n="project_name_placeholder">
                         <h3 data-i18n="project_instructions">プロジェクト指示</h3>
                         <textarea id="project-instructions" class="project-instructions-textarea" placeholder="プロジェクト指示を入力" data-i18n="project_instructions_placeholder"></textarea>
+                    </div>
+
+                    <!-- セッション情報表示エリア -->
+                    <div class="session-info">
+                        <div class="session-title-display">未選択</div>
                     </div>
 
                     <!-- 既存のパネルコンテナ -->
