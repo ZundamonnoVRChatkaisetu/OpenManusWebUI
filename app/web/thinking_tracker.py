@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 思考跟踪器模块，实现Manus风格的任务进展日志系统
 """
@@ -14,7 +15,7 @@ TRANSLATIONS = {
     'zh-CN': {
         'start_processing': '开始处理用户请求',
         'workspace_dir': '工作区目录',
-        'user_input': '用户输入通信',
+        'user_input': '用户输入',
         'init_agent': '初始化AI代理和任务流程',
         'analyze_request': '分析用户请求',
         'task_complete': '任务处理完成！已生成结果。',
@@ -24,11 +25,19 @@ TRANSLATIONS = {
         'not_started': '未开始',
         'send_to_llm': '发送到LLM',
         'receive_from_llm': '从LLM接收',
+        'create_task_plan': '创建任务执行计划',
+        'start_execute_plan': '开始执行任务计划',
+        'executing': '执行',
+        'complete': '完成',
+        'info': '信息',
+        'warning': '警告',
+        'error': '错误',
+        'communication': '通信',
     },
     'en-US': {
         'start_processing': 'Start processing user request',
         'workspace_dir': 'Workspace directory',
-        'user_input': 'User input communication',
+        'user_input': 'User input',
         'init_agent': 'Initialize AI agent and task flow',
         'analyze_request': 'Analyze user request',
         'task_complete': 'Task processing completed! Results have been generated.',
@@ -38,11 +47,19 @@ TRANSLATIONS = {
         'not_started': 'Not started',
         'send_to_llm': 'Send to LLM',
         'receive_from_llm': 'Receive from LLM',
+        'create_task_plan': 'Create task execution plan',
+        'start_execute_plan': 'Start executing task plan',
+        'executing': 'Executing',
+        'complete': 'Complete',
+        'info': 'Info',
+        'warning': 'Warning',
+        'error': 'Error',
+        'communication': 'Communication',
     },
     'ja-JP': {
         'start_processing': 'ユーザーリクエストの処理を開始',
         'workspace_dir': 'ワークスペースディレクトリ',
-        'user_input': 'ユーザー入力通信',
+        'user_input': 'ユーザー入力',
         'init_agent': 'AIエージェントとタスクフローを初期化',
         'analyze_request': 'ユーザーリクエストを分析',
         'task_complete': 'タスク処理が完了しました！結果が生成されました。',
@@ -52,6 +69,14 @@ TRANSLATIONS = {
         'not_started': '未開始',
         'send_to_llm': 'LLMへ送信',
         'receive_from_llm': 'LLMから受信',
+        'create_task_plan': 'タスク実行計画を作成',
+        'start_execute_plan': 'タスク計画の実行を開始',
+        'executing': '実行中',
+        'complete': '完了',
+        'info': '情報',
+        'warning': '警告',
+        'error': 'エラー',
+        'communication': '通信',
     }
 }
 
@@ -155,7 +180,7 @@ class ThinkingTracker:
                     # Attempt to extract step number and total steps from the message
                     import re
 
-                    match = re.search(r"Executing step (\\d+)/(\\d+)", message)
+                    match = re.search(r"Executing step (\d+)/(\d+)", message)
                     if match:
                         current_step_num = int(match.group(1))
                         total_steps = int(match.group(2))
@@ -191,7 +216,7 @@ class ThinkingTracker:
         elif direction == "用户输入":
             direction = t('user_input')
 
-        message = f"{direction}通信"
+        message = f"{direction} {t('communication')}"
         step = ThinkingStep(message, "communication", content)
         with cls._lock:
             if session_id in cls._session_steps:
@@ -329,15 +354,15 @@ class ThinkingTracker:
                     )
                 elif "执行步骤" in msg or "步骤" in msg:
                     # 尝试提取步骤信息
-                    cls.add_thinking_step(session_id, f"执行: {msg}")
+                    cls.add_thinking_step(session_id, f"{t('executing')}: {msg}")
                 elif "完成" in msg or "成功" in msg:
-                    cls.add_thinking_step(session_id, f"完成: {msg}")
+                    cls.add_thinking_step(session_id, f"{t('complete')}: {msg}")
                 else:
-                    cls.add_thinking_step(session_id, f"信息: {msg}")
+                    cls.add_thinking_step(session_id, f"{t('info')}: {msg}")
             elif entry.get("level") == "ERROR":
-                cls.add_error(session_id, f"错误: {msg}")
+                cls.add_error(session_id, f"{t('error')}: {msg}")
             elif entry.get("level") == "WARNING":
-                cls.add_thinking_step(session_id, f"警告: {msg}", "warning")
+                cls.add_thinking_step(session_id, f"{t('warning')}: {msg}", "warning")
 
             # 识别进度信息并更新
             cls._update_progress_from_log(session_id, msg)
@@ -372,8 +397,8 @@ class ThinkingTracker:
         import re
 
         # 尝试从日志中提取步骤信息
-        step_match = re.search(r"步骤 (\\d+)/(\\d+)", message) or re.search(
-            r"Step (\\d+)/(\\d+)", message
+        step_match = re.search(r"步骤 (\d+)/(\d+)", message) or re.search(
+            r"Step (\d+)/(\d+)", message
         )
         if step_match and session_id in cls._session_progress:
             current_step = int(step_match.group(1))
