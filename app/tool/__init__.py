@@ -5,7 +5,11 @@ from app.tool.planning import PlanningTool
 from app.tool.str_replace_editor import StrReplaceEditor
 from app.tool.terminate import Terminate
 from app.tool.tool_collection import ToolCollection
+from app.tool.file_saver import FileSaver
+from app.tool.google_search import GoogleSearch
+from app.tool.python_execute import PythonExecute
 
+# browser_use_toolの読み込みを無効化
 
 __all__ = [
     "BaseTool",
@@ -15,4 +19,7 @@ __all__ = [
     "ToolCollection",
     "CreateChatCompletion",
     "PlanningTool",
+    "FileSaver",
+    "GoogleSearch",
+    "PythonExecute",
 ]
