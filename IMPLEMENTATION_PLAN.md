@@ -411,7 +411,7 @@
 
 ### 実装結果
 1. ✅ クロスプラットフォーム対応設定ディレクトリの実装
-   - **Windows**: `%USERPROFILE%\\AppData\\Roaming\\OpenManusWebUI`にファイルを保存
+   - **Windows**: `%USERPROFILE%\\\\AppData\\\\Roaming\\\\OpenManusWebUI`にファイルを保存
    - **macOS**: `~/Library/Application Support/OpenManusWebUI`にファイルを保存
    - **Linux**: `~/.config/openmanus-webui`にファイルを保存
    - **フォールバック**: 通常のディレクトリが使用できない場合は`temp`ディレクトリを使用
@@ -469,3 +469,41 @@
    - **処理状態表示**: 追加指示を受け付けていることがわかるステータスメッセージの追加
    - **システムメッセージ**: キューに追加された場合の通知メッセージ表示
    - **多言語対応**: 新しいメッセージの各言語への翻訳追加
+
+## 14. WebSocket接続時のログ出力抑制（2025-03-21）
+
+### 実装前の問題点
+- WebSocket接続のたびに大量のログがコンソールに出力される
+- 特に「WebSocket /ws/[UUID]" [accepted]」「connection open」「connection closed」などのログが頻繁に出力
+- 実際に必要なログが埋もれてしまい、デバッグや問題解決が困難になる
+- uvicornのデフォルトログレベル（INFO）では接続情報が全て出力される
+
+### 実装計画
+1. ログフィルタリング機能の強化
+   - WebSocket関連ログの特定と制御
+   - uvicornロガーのカスタマイズ
+   - 不要なログの抑制設定
+
+2. コマンドラインからのログレベル制御
+   - ユーザーがログレベルを指定できるオプションの追加
+   - 実行時のログレベル設定機能
+
+3. デバッグモードでのログ出力制御
+   - 必要に応じてログを有効化する仕組み
+   - 条件付きログ出力の実装
+
+### 実装結果
+1. ✅ WebSocket関連ログの抑制
+   - **ロギング設定の更新**: WebSocketログを制御するためのフィルター追加
+   - **デフォルトログレベル変更**: uvicorn.errorとuvicorn.accessのログレベルをWARNINGに変更
+   - **websocketsロガー制御**: websocketsパッケージのログレベルもWARNINGに設定
+
+2. ✅ ログレベル設定オプションの追加
+   - **コマンドラインオプション**: `--log-level`オプションを追加し、debug/info/warning/error/criticalを選択可能に
+   - **動的ログレベル設定**: アプリケーション起動時にログレベルを設定する機能
+   - **uvicorn連携**: uvicornのlog_levelパラメータと連携
+
+3. ✅ ファイルパスベースのフィルタリング強化
+   - **無視パス追加**: `/ws/`を無視パスリストに追加
+   - **ミドルウェア改善**: LogFilterMiddlewareの処理を最適化
+   - **設定機能の強化**: set_uvicorn_log_levelヘルパー関数の実装
