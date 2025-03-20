@@ -1,0 +1,878 @@
+/**
+ * manus_ui.css
+ * Manusの最新UI（https://manus.im/app）に合わせたスタイル
+ */
+
+:root {
+    /* Manus UI カラーパレット */
+    --manus-dark-bg: #1E1E1E;
+    --manus-sidebar-bg: #252526;
+    --manus-header-bg: #333333;
+    --manus-panel-bg: #2D2D30;
+    --manus-content-bg: #1E1E1E;
+    --manus-border: #3E3E42;
+    --manus-divider: rgba(255, 255, 255, 0.1);
+    
+    /* テキストカラー */
+    --manus-text-primary: #E0E0E0;
+    --manus-text-secondary: #A0A0A0;
+    --manus-text-muted: #6E6E6E;
+    
+    /* アクセントカラー */
+    --manus-blue: #4C6FFF;
+    --manus-blue-hover: #5C7FFF;
+    --manus-blue-active: #3C5FEF;
+    
+    /* 状態カラー */
+    --manus-success: #4CAF50;
+    --manus-warning: #FF9800;
+    --manus-danger: #F44336;
+    --manus-info: #2196F3;
+    
+    /* 選択とハイライト */
+    --manus-selection: rgba(76, 111, 255, 0.3);
+    --manus-highlight: #3E3E42;
+    
+    /* シャドウ */
+    --manus-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --manus-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    --manus-shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.5);
+    
+    /* フォント */
+    --manus-font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    --manus-font-mono: 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
+    
+    /* サイズと間隔 */
+    --manus-header-height: 48px;
+    --manus-sidebar-width: 250px;
+    --manus-border-radius: 4px;
+}
+
+/* ベーススタイル */
+body {
+    font-family: var(--manus-font-sans);
+    background-color: var(--manus-dark-bg);
+    color: var(--manus-text-primary);
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* ヘッダー */
+header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: var(--manus-header-height);
+    background-color: var(--manus-header-bg);
+    padding: 0 16px;
+    box-shadow: var(--manus-shadow);
+    border-bottom: 1px solid var(--manus-border);
+    z-index: 10;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+}
+
+.header-center {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+}
+
+h1 {
+    font-size: 1.5rem;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--manus-text-primary);
+}
+
+.subtitle {
+    font-size: 0.9rem;
+    color: var(--manus-text-secondary);
+    margin-left: 10px;
+}
+
+.nav-links {
+    display: flex;
+    gap: 16px;
+    margin-right: 16px;
+}
+
+.nav-links a {
+    color: var(--manus-text-secondary);
+    text-decoration: none;
+    padding: 6px 12px;
+    border-radius: var(--manus-border-radius);
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.nav-links a:hover {
+    background-color: var(--manus-highlight);
+    color: var(--manus-text-primary);
+}
+
+/* 言語セレクター */
+.language-selector select {
+    background-color: var(--manus-panel-bg);
+    color: var(--manus-text-primary);
+    border: 1px solid var(--manus-border);
+    padding: 6px 12px;
+    border-radius: var(--manus-border-radius);
+    font-size: 0.875rem;
+    outline: none;
+    cursor: pointer;
+}
+
+/* メインレイアウト */
+main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.app-container {
+    display: flex;
+    flex: 1;
+    height: calc(100vh - var(--manus-header-height));
+    overflow: hidden;
+}
+
+/* サイドバー */
+.sidebar {
+    width: var(--manus-sidebar-width);
+    background-color: var(--manus-sidebar-bg);
+    border-right: 1px solid var(--manus-border);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.sidebar-section {
+    margin-bottom: 24px;
+}
+
+.sidebar-section h3 {
+    font-size: 0.875rem;
+    color: var(--manus-text-secondary);
+    font-weight: 600;
+    margin: 0 0 10px 0;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--manus-border);
+}
+
+.project-list, .session-list {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 12px;
+}
+
+.project-item, .session-item {
+    padding: 8px 10px;
+    margin-bottom: 4px;
+    border-radius: var(--manus-border-radius);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.project-item:hover, .session-item:hover {
+    background-color: var(--manus-highlight);
+}
+
+.project-item.selected, .session-item.selected {
+    background-color: var(--manus-selection);
+    border-left: 2px solid var(--manus-blue);
+}
+
+.project-name, .session-title {
+    font-size: 0.875rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.project-date, .session-date {
+    font-size: 0.75rem;
+    color: var(--manus-text-muted);
+    margin-top: 4px;
+}
+
+.sidebar-buttons {
+    display: flex;
+    gap: 6px;
+}
+
+/* メインコンテンツ */
+.main-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* プロジェクト詳細パネル */
+.project-details-panel {
+    background-color: var(--manus-panel-bg);
+    padding: 16px;
+    border-bottom: 1px solid var(--manus-border);
+}
+
+.project-details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.project-details-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--manus-text-primary);
+}
+
+.project-name-input {
+    width: 100%;
+    padding: 8px 10px;
+    margin-bottom: 12px;
+    background-color: var(--manus-dark-bg);
+    color: var(--manus-text-primary);
+    border: 1px solid var(--manus-border);
+    border-radius: var(--manus-border-radius);
+    font-size: 0.9rem;
+}
+
+.project-name-input:focus {
+    border-color: var(--manus-blue);
+    outline: none;
+}
+
+.project-instructions-textarea {
+    width: 100%;
+    height: 80px;
+    padding: 8px 10px;
+    background-color: var(--manus-dark-bg);
+    color: var(--manus-text-primary);
+    border: 1px solid var(--manus-border);
+    border-radius: var(--manus-border-radius);
+    resize: vertical;
+    font-family: var(--manus-font-sans);
+    font-size: 0.9rem;
+}
+
+.project-instructions-textarea:focus {
+    border-color: var(--manus-blue);
+    outline: none;
+}
+
+/* セッション情報 */
+.session-info {
+    background-color: var(--manus-panel-bg);
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--manus-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.session-title-display {
+    font-weight: 500;
+    color: var(--manus-text-primary);
+}
+
+/* パネルコンテナ */
+.panel-container {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.left-panel {
+    width: 300px;
+    background-color: var(--manus-panel-bg);
+    border-right: 1px solid var(--manus-border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.right-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--manus-content-bg);
+    overflow: hidden;
+}
+
+.panel h2 {
+    font-size: 1.1rem;
+    margin: 0;
+    padding: 16px;
+    color: var(--manus-text-primary);
+    border-bottom: 1px solid var(--manus-border);
+}
+
+/* 左パネルコンテンツ */
+.thinking-section {
+    padding: 16px;
+    border-bottom: 1px solid var(--manus-border);
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.section-header h3 {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--manus-text-primary);
+}
+
+.record-count {
+    font-size: 0.75rem;
+    color: var(--manus-text-muted);
+}
+
+.controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.auto-scroll {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--manus-text-secondary);
+    font-size: 0.75rem;
+}
+
+.thinking-timeline {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+.thinking-step {
+    margin-bottom: 12px;
+    padding-left: 16px;
+    position: relative;
+    font-size: 0.875rem;
+    color: var(--manus-text-secondary);
+}
+
+.thinking-step::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 6px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--manus-blue);
+}
+
+.thinking-step::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 18px;
+    bottom: -18px;
+    width: 2px;
+    background-color: var(--manus-border);
+}
+
+.thinking-step:last-child::after {
+    display: none;
+}
+
+.thinking-step-time {
+    font-size: 0.75rem;
+    color: var(--manus-text-muted);
+    margin-bottom: 4px;
+}
+
+.thinking-step-content {
+    line-height: 1.5;
+}
+
+/* ワークスペースファイル */
+.workspace-section {
+    padding: 16px;
+    border-top: 1px solid var(--manus-border);
+}
+
+.workspace-section h3 {
+    margin: 0 0 12px 0;
+    font-size: 0.9rem;
+    color: var(--manus-text-primary);
+}
+
+.refresh-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    font-size: 0.75rem;
+    color: var(--manus-text-muted);
+}
+
+.workspace-files {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 10px;
+    border-radius: var(--manus-border-radius);
+    cursor: pointer;
+    margin-bottom: 4px;
+}
+
+.file-item:hover {
+    background-color: var(--manus-highlight);
+}
+
+.file-icon {
+    margin-right: 8px;
+    color: var(--manus-text-secondary);
+}
+
+.file-name {
+    font-size: 0.875rem;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-meta {
+    font-size: 0.75rem;
+    color: var(--manus-text-muted);
+}
+
+/* チャット */
+.chat-messages {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.message {
+    display: flex;
+    flex-direction: column;
+    max-width: 85%;
+    padding: 12px 16px;
+    border-radius: 8px;
+    position: relative;
+}
+
+.user-message {
+    align-self: flex-end;
+    background-color: var(--manus-blue);
+    color: white;
+    border-bottom-right-radius: 0;
+}
+
+.ai-message {
+    align-self: flex-start;
+    background-color: var(--manus-panel-bg);
+    border: 1px solid var(--manus-border);
+    border-bottom-left-radius: 0;
+}
+
+.system-message {
+    align-self: center;
+    background-color: rgba(77, 77, 77, 0.7);
+    font-style: italic;
+    padding: 8px 12px;
+    font-size: 0.875rem;
+    color: var(--manus-text-secondary);
+    max-width: 80%;
+    text-align: center;
+    border-radius: var(--manus-border-radius);
+}
+
+.message-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 8px;
+    font-size: 1.1rem;
+}
+
+.avatar.user {
+    background-color: var(--manus-blue);
+}
+
+.avatar.ai {
+    background-color: var(--manus-sidebar-bg);
+    border: 1px solid var(--manus-border);
+}
+
+.sender {
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.message-content {
+    font-size: 0.9375rem;
+    line-height: 1.5;
+}
+
+.message-content p {
+    margin: 0 0 12px 0;
+}
+
+.message-content p:last-child {
+    margin-bottom: 0;
+}
+
+.message-content pre {
+    background-color: var(--manus-dark-bg);
+    border-radius: var(--manus-border-radius);
+    padding: 12px;
+    overflow-x: auto;
+    font-family: var(--manus-font-mono);
+    font-size: 0.875rem;
+    margin: 12px 0;
+}
+
+.message-content code {
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: var(--manus-font-mono);
+    font-size: 0.875rem;
+}
+
+/* 入力エリア */
+.input-area {
+    padding: 16px;
+    background-color: var(--manus-panel-bg);
+    border-top: 1px solid var(--manus-border);
+}
+
+textarea {
+    width: 100%;
+    height: 80px;
+    padding: 12px;
+    background-color: var(--manus-dark-bg);
+    color: var(--manus-text-primary);
+    border: 1px solid var(--manus-border);
+    border-radius: var(--manus-border-radius);
+    font-family: var(--manus-font-sans);
+    font-size: 0.9375rem;
+    resize: none;
+    margin-bottom: 12px;
+}
+
+textarea:focus {
+    outline: none;
+    border-color: var(--manus-blue);
+    box-shadow: 0 0 0 2px rgba(76, 111, 255, 0.3);
+}
+
+.button-group {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+/* ステータスインジケーター */
+.status-indicator {
+    font-size: 0.8125rem;
+    color: var(--manus-text-secondary);
+    min-height: 20px;
+}
+
+/* ボタンスタイル */
+button {
+    cursor: pointer;
+    font-family: var(--manus-font-sans);
+    border: none;
+    border-radius: var(--manus-border-radius);
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 8px 16px;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+button:active {
+    transform: translateY(1px);
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-primary, .btn-send {
+    background-color: var(--manus-blue);
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled), .btn-send:hover:not(:disabled) {
+    background-color: var(--manus-blue-hover);
+}
+
+.btn-primary:active:not(:disabled), .btn-send:active:not(:disabled) {
+    background-color: var(--manus-blue-active);
+}
+
+.btn-edit {
+    background-color: var(--manus-info);
+    color: white;
+}
+
+.btn-edit:hover:not(:disabled) {
+    background-color: #1e88e5;
+}
+
+.btn-danger, .btn-stop {
+    background-color: var(--manus-danger);
+    color: white;
+}
+
+.btn-danger:hover:not(:disabled), .btn-stop:hover:not(:disabled) {
+    background-color: #e53935;
+}
+
+.btn-clear, .btn-refresh {
+    background-color: var(--manus-dark-bg);
+    color: var(--manus-text-secondary);
+    border: 1px solid var(--manus-border);
+}
+
+.btn-clear:hover:not(:disabled), .btn-refresh:hover:not(:disabled) {
+    background-color: var(--manus-highlight);
+    color: var(--manus-text-primary);
+}
+
+/* ファイルビューア */
+.file-viewer {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+    max-width: 900px;
+    height: 80%;
+    max-height: 700px;
+    background-color: var(--manus-panel-bg);
+    border-radius: 8px;
+    box-shadow: var(--manus-shadow-lg);
+    z-index: 1000;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.file-viewer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background-color: var(--manus-header-bg);
+    border-bottom: 1px solid var(--manus-border);
+}
+
+.file-viewer-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--manus-text-primary);
+}
+
+.btn-close {
+    background: none;
+    color: var(--manus-text-secondary);
+    font-size: 1.5rem;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+}
+
+.btn-close:hover {
+    color: var(--manus-text-primary);
+}
+
+.file-content {
+    flex: 1;
+    padding: 16px;
+    overflow: auto;
+    background-color: var(--manus-dark-bg);
+    font-family: var(--manus-font-mono);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+/* AI思考プロセス可視化 */
+.thinking-process-container {
+    margin-bottom: 16px;
+    padding: 12px;
+    background-color: var(--manus-dark-bg);
+    border-radius: var(--manus-border-radius);
+    border: 1px solid var(--manus-border);
+}
+
+.thinking-process-title {
+    font-size: 0.875rem;
+    color: var(--manus-text-secondary);
+    margin: 0 0 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.thinking-process-icon {
+    color: var(--manus-blue);
+}
+
+.thinking-process-steps {
+    font-size: 0.8125rem;
+    color: var(--manus-text-secondary);
+    margin: 0;
+    padding-left: 20px;
+}
+
+.thinking-process-step {
+    margin-bottom: 6px;
+    position: relative;
+}
+
+.thinking-process-step::before {
+    content: '⟶';
+    position: absolute;
+    left: -15px;
+    color: var(--manus-blue);
+}
+
+/* ツール使用状況 */
+.tool-usage-container {
+    margin-bottom: 16px;
+    padding: 12px;
+    background-color: var(--manus-dark-bg);
+    border-radius: var(--manus-border-radius);
+    border: 1px solid var(--manus-border);
+}
+
+.tool-execution-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: var(--manus-border-radius);
+    background-color: rgba(76, 111, 255, 0.1);
+    margin-bottom: 8px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { background-color: rgba(76, 111, 255, 0.1); }
+    50% { background-color: rgba(76, 111, 255, 0.2); }
+}
+
+.indicator-icon {
+    color: var(--manus-blue);
+}
+
+.indicator-text {
+    font-size: 0.875rem;
+}
+
+/* フッター */
+footer {
+    background-color: var(--manus-header-bg);
+    border-top: 1px solid var(--manus-border);
+    padding: 12px 16px;
+    font-size: 0.75rem;
+    color: var(--manus-text-muted);
+    text-align: center;
+}
+
+footer a {
+    color: var(--manus-text-secondary);
+    text-decoration: none;
+}
+
+footer a:hover {
+    text-decoration: underline;
+}
+
+/* レスポンシブデザイン */
+@media (max-width: 1024px) {
+    .sidebar {
+        width: 220px;
+    }
+    
+    .left-panel {
+        width: 280px;
+    }
+}
+
+@media (max-width: 768px) {
+    .app-container {
+        flex-direction: column;
+    }
+    
+    .sidebar {
+        width: 100%;
+        max-height: 200px;
+        border-right: none;
+        border-bottom: 1px solid var(--manus-border);
+    }
+    
+    .panel-container {
+        flex-direction: column;
+    }
+    
+    .left-panel {
+        width: 100%;
+        max-height: 300px;
+        border-right: none;
+        border-bottom: 1px solid var(--manus-border);
+    }
+}
