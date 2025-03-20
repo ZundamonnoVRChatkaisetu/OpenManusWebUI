@@ -452,8 +452,9 @@ class App {
             }
 
             console.log('处理已停止');
-            this.chatManager.addSystemMessage(t('processing_stopped'));
-            document.getElementById('status-indicator').textContent = t('processing_stopped');
+            const stoppedMessage = t('processing_stopped');
+            this.chatManager.addSystemMessage(stoppedMessage);
+            document.getElementById('status-indicator').textContent = stoppedMessage;
             document.getElementById('stop-btn').disabled = true;
             this.isProcessing = false;
             
