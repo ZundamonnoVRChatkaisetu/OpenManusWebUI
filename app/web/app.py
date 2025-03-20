@@ -24,7 +24,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
-from app.agent.manus import Manus
+from app.utils.language_utils import detect_language, get_template
+from app.web.enhanced_agent_factory import create_enhanced_agent
 from app.flow.base import FlowType
 from app.flow.flow_factory import FlowFactory
 from app.web.log_handler import capture_session_logs, get_logs
@@ -1099,121 +1100,19 @@ async def process_prompt(session_id: str, prompt: str, project_id: Optional[str]
             # 直接记录用户输入的prompt
             ThinkingTracker.add_communication(session_id, t('user_input'), prompt)
             
-            # ====== ツールコマンドの検出と実行 ======
-            # テキスト内のツールコマンドを検出
-            has_tool_commands = bool(tool_manager.extract_tool_commands(prompt))
+            # 言語を検出
+            detected_language = detect_language(prompt)
+            if detected_language != "en":
+                language_name = {"ja": "日本語", "zh": "中国語"}.get(detected_language, detected_language)
+                ThinkingTracker.add_thinking_step(
+                    session_id, f"言語を検出しました: {language_name}"
+                )
+                # 言語に基づいて環境変数を設定
+                os.environ["ENHANCED_MANUS_LANGUAGE"] = detected_language
             
-            if has_tool_commands:
-                ThinkingTracker.add_thinking_step(session_id, "ツールコマンドを検出しました。処理を開始します...")
-                processed_text, tool_results = await tool_manager.process_text(prompt)
-                
-                # ツール実行結果をトラッキング
-                for result in tool_results:
-                    tool_name = result["tool"]
-                    status = result["result"]["status"]
-                    message = result["result"]["message"]
-                    
-                    if status == "success":
-                        ThinkingTracker.add_thinking_step(
-                            session_id, 
-                            f"ツール '{tool_name}' を実行しました: {message}"
-                        )
-                    else:
-                        ThinkingTracker.add_thinking_step(
-                            session_id, 
-                            f"ツール '{tool_name}' の実行中にエラーが発生しました: {message}"
-                        )
-                
-                # 処理後のテキストをプロンプトとして使用
-                prompt = processed_text
+            # ====== EnhancedManusを使用して処理 ======
+            enhanced_agent = create_enhanced_agent(prompt)
             
-            # 以下は既存の処理
-
-            # 初始化代理和任务流程
-            ThinkingTracker.add_thinking_step(session_id, t('init_agent'))
-            agent = Manus()
-
-            # 使用包装器包装LLM
-            if hasattr(agent, "llm"):
-                original_llm = agent.llm
-                wrapped_llm = LLMCallbackWrapper(original_llm)
-
-                # 注册回调函数
-                def on_before_request(data):
-                    # 提取请求内容
-                    prompt_content = None
-                    if data.get("args") and len(data["args"]) > 0:
-                        prompt_content = str(data["args"][0])
-                    elif data.get("kwargs") and "prompt" in data["kwargs"]:
-                        prompt_content = data["kwargs"]["prompt"]
-                    else:
-                        prompt_content = str(data)
-
-                    # 记录通信内容
-                    print(f"発送先LLM: {prompt_content[:100]}...")
-                    ThinkingTracker.add_communication(
-                        session_id, t('send_to_llm'), prompt_content
-                    )
-                    
-                    # 追加指示があれば統合
-                    if session_id in active_tasks and active_tasks[session_id]["modified"]:
-                        additional_instructions = active_tasks[session_id]["additional_instructions"]
-                        if additional_instructions:
-                            # 追加指示を組み合わせた情報を表示
-                            ThinkingTracker.add_thinking_step(
-                                session_id,
-                                f"追加指示 ({len(additional_instructions)}件) をタスクに統合します"
-                            )
-                            for idx, instruction in enumerate(additional_instructions):
-                                ThinkingTracker.add_thinking_step(
-                                    session_id,
-                                    f"追加指示 {idx+1}: {instruction[:100]}{'...' if len(instruction) > 100 else ''}"
-                                )
-
-                def on_after_request(data):
-                    # 提取响应内容
-                    response = data.get("response", "")
-                    response_content = ""
-
-                    # 尝试从不同格式中提取文本内容
-                    if isinstance(response, str):
-                        response_content = response
-                    elif isinstance(response, dict):
-                        if "content" in response:
-                            response_content = response["content"]
-                        elif "text" in response:
-                            response_content = response["text"]
-                        else:
-                            response_content = str(response)
-                    elif hasattr(response, "content"):
-                        response_content = response.content
-                    else:
-                        response_content = str(response)
-
-                    # 记录通信内容
-                    print(f"LLMからの受信: {response_content[:100]}...")
-                    ThinkingTracker.add_communication(
-                        session_id, t('receive_from_llm'), response_content
-                    )
-
-                # 注册回调
-                wrapped_llm.register_callback("before_request", on_before_request)
-                wrapped_llm.register_callback("after_request", on_after_request)
-
-                # 替换原始LLM
-                agent.llm = wrapped_llm
-
-            flow = FlowFactory.create_flow(
-                flow_type=FlowType.PLANNING,
-                agents=agent,
-            )
-
-            # 记录处理开始
-            ThinkingTracker.add_thinking_step(
-                session_id, f"{t('analyze_request')}: {prompt[:50]}{'...' if len(prompt) > 50 else ''}"
-            )
-            log.info(f"開始実行: {prompt[:50]}{'...' if len(prompt) > 50 else ''}")
-
             # 检查任务是否被取消
             cancel_event = cancel_events.get(session_id)
             if cancel_event and cancel_event.is_set():
@@ -1222,27 +1121,7 @@ async def process_prompt(session_id: str, prompt: str, project_id: Optional[str]
                 active_sessions[session_id]["status"] = "stopped"
                 active_sessions[session_id]["result"] = "処理がユーザーによって停止されました"
                 return
-
-            # 执行前检查工作区已有文件
-            existing_files = set()
-            for ext in ["*.txt", "*.md", "*.html", "*.css", "*.js", "*.py", "*.json"]:
-                existing_files.update(f.name for f in workspace_dir.glob(ext))
-
-            # 跟踪计划创建过程
-            ThinkingTracker.add_thinking_step(session_id, t('create_task_plan'))
-            ThinkingTracker.add_thinking_step(session_id, t('start_execute_plan'))
-
-            # 获取取消事件以传递给flow.execute
-            cancel_event = cancel_events.get(session_id)
-
-            # 初始检查，如果已经取消则不执行
-            if cancel_event and cancel_event.is_set():
-                log.warning("処理がユーザーによって中止されました")
-                ThinkingTracker.mark_stopped(session_id)
-                active_sessions[session_id]["status"] = "stopped"
-                active_sessions[session_id]["result"] = "処理がユーザーによって停止されました"
-                return
-
+            
             # プロジェクト指示を取得（存在する場合）
             # セッションからプロジェクトを取得
             session_data = db.get_session(session_id)
@@ -1265,47 +1144,38 @@ async def process_prompt(session_id: str, prompt: str, project_id: Optional[str]
                     ThinkingTracker.add_thinking_step(
                         session_id, f"プロジェクト指示を適用: {project['instructions'][:50]}{'...' if len(project['instructions']) > 50 else ''}"
                     )
-
-                    # 利用可能なツールに関する情報を追加
-                    tools_instructions = tool_manager.get_tools_usage_instructions()
-                    if tools_instructions:
-                        prompt += f"\n\n{tools_instructions}"
-                        log.info("ツール使用手順を追加しました")
-                        ThinkingTracker.add_thinking_step(session_id, "ツール使用手順を追加しました")
-
-            # 执行实际处理 - 传递job_id和cancel_event给flow.execute方法
-            result = await flow.execute(prompt, job_id, cancel_event)
-
-            # 执行结束后检查新生成的文件
-            new_files = set()
-            for ext in ["*.txt", "*.md", "*.html", "*.css", "*.js", "*.py", "*.json"]:
-                new_files.update(f.name for f in workspace_dir.glob(ext))
-            newly_created = new_files - existing_files
-
-            if newly_created:
-                files_list = ", ".join(newly_created)
+            
+            log.info(f"処理を開始します: {prompt[:50]}{'...' if len(prompt) > 50 else ''}")
+            
+            # EnhancedManusを使用して処理
+            result = await enhanced_agent.run(prompt)
+            
+            # AIの応答をデータベースに保存
+            message_id = str(uuid.uuid4())
+            db.create_message(message_id, session_id, "assistant", result)
+            
+            # 処理結果を保存
+            active_sessions[session_id]["status"] = "completed"
+            active_sessions[session_id]["result"] = result
+            
+            # 思考ステップも保存
+            active_sessions[session_id]["thinking_steps"] = ThinkingTracker.get_thinking_steps(session_id)
+            
+            # 生成されたファイルがあれば記録
+            if hasattr(enhanced_agent, "generated_files") and enhanced_agent.generated_files:
+                file_list = [f['filename'] for f in enhanced_agent.generated_files]
+                files_str = ", ".join(file_list)
                 ThinkingTracker.add_thinking_step(
                     session_id,
-                    f"ワークスペース {workspace_dir.name} で{len(newly_created)}個のファイルが生成されました: {files_list}",
+                    f"ワークスペース {workspace_dir.name} で{len(file_list)}個のファイルが生成されました: {files_str}"
                 )
-                # 将文件列表也添加到会话结果中
-                active_sessions[session_id]["generated_files"] = list(newly_created)
-
-            # 记录完成情况
+                active_sessions[session_id]["generated_files"] = file_list
+            
+            # 記録完成情况
             log.info("処理完了")
             ThinkingTracker.add_conclusion(
                 session_id, f"タスク処理が完了しました！ワークスペース {workspace_dir.name} に結果が生成されました。"
             )
-
-            # AIの応答をデータベースに保存
-            message_id = str(uuid.uuid4())
-            db.create_message(message_id, session_id, "assistant", result)
-
-            active_sessions[session_id]["status"] = "completed"
-            active_sessions[session_id]["result"] = result
-            active_sessions[session_id][
-                "thinking_steps"
-            ] = ThinkingTracker.get_thinking_steps(session_id)
             
             # タスク上下文をクリア
             if session_id in active_tasks:
@@ -1335,11 +1205,7 @@ async def process_prompt(session_id: str, prompt: str, project_id: Optional[str]
             del os.environ["OPENMANUS_TASK_ID"]
 
         # 清理资源
-        if (
-            "agent" in locals()
-            and hasattr(agent, "llm")
-            and isinstance(agent.llm, LLMCallbackWrapper)
-        ):
+        if "agent" in locals() and hasattr(agent, "llm") and isinstance(agent.llm, LLMCallbackWrapper):
             try:
                 # 正确地移除回调
                 if "on_before_request" in locals():
