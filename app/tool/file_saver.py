@@ -1,8 +1,19 @@
 import os
+from typing import Dict, Union, Optional
+from pydantic import BaseModel
 
 import aiofiles
 
 from app.tool.base import BaseTool
+
+
+class SaveFileParams(BaseModel):
+    """
+    ファイル保存パラメータモデル
+    """
+    content: str
+    filename: str
+    mode: Optional[str] = "w"
 
 
 class FileSaver(BaseTool):
