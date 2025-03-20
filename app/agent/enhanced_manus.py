@@ -10,7 +10,8 @@ from app.agent.toolcall import ToolCallAgent
 from app.logger import logger
 from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.tool import Terminate, ToolCollection
-from app.tool.browser_use_tool import BrowserUseTool
+# ブラウザツールの読み込みを無効化
+# from app.tool.browser_use_tool import BrowserUseTool
 from app.tool.file_saver import FileSaver, SaveFileParams
 from app.tool.google_search import GoogleSearch
 from app.tool.python_execute import PythonExecute
@@ -137,7 +138,7 @@ class EnhancedManus(Manus):
             try:
                 # 結果からアプリ名と説明を抽出する試み
                 import re
-                app_name_match = re.search(r'app(?:\s+name)?[:\s]+(["\'']?)([^"\':\n]+)\1', result, re.IGNORECASE)
+                app_name_match = re.search(r'app(?:\s+name)?[:\s]+([\"\']?)([^\"\':\n]+)\1', result, re.IGNORECASE)
                 app_name = app_name_match.group(2) if app_name_match else "SampleApp"
                 
                 # 機能リストを抽出する試み
@@ -169,7 +170,7 @@ class EnhancedManus(Manus):
                     ]
                 
                 # アプリ説明を抽出する試み
-                description_match = re.search(r'description:?\s*(["\'']?)([^"\']+)\1', result, re.IGNORECASE)
+                description_match = re.search(r'description:?\s*([\"\']?)([^\"\']+)\1', result, re.IGNORECASE)
                 app_description = description_match.group(2) if description_match else "革新的なアプリケーション"
                 
                 # アプリ設計書を生成
