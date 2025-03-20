@@ -15,6 +15,7 @@ class App {
         this.sessionId = null;
         this.isProcessing = false;
         this.currentProjectId = null;
+        this.chatHistory = []; // 追加：チャット履歴の保持
 
         // 初始化各个管理器
         this.websocketManager = new WebSocketManager(this.handleWebSocketMessage.bind(this));
@@ -68,6 +69,7 @@ class App {
         // 清除按钮
         document.getElementById('clear-btn').addEventListener('click', () => {
             this.chatManager.clearMessages();
+            this.chatHistory = []; // 追加：チャット履歴のクリア
         });
 
         // 清除思考记录按钮
@@ -97,6 +99,7 @@ class App {
         
         // プロジェクト選択時にチャット履歴をクリア
         this.chatManager.clearMessages();
+        this.chatHistory = []; // 追加：チャット履歴のクリア
         
         // 工作区文件管理器に選択したプロジェクトIDを設定
         this.workspaceManager.setCurrentProjectId(projectId);
@@ -115,6 +118,7 @@ class App {
         
         // セッション選択時にチャット履歴をクリア
         this.chatManager.clearMessages();
+        this.chatHistory = []; // 追加：チャット履歴のクリア
         
         // セッション選択時に現在のプロジェクトIDを取得
         const { projectId } = this.projectManager.getCurrentSession();
@@ -141,6 +145,8 @@ class App {
             // チャット履歴があれば表示
             if (sessionData.messages && sessionData.messages.length > 0) {
                 this.loadChatHistory(sessionData.messages);
+                // 追加：チャット履歴を内部状態に保存
+                this.chatHistory = sessionData.messages;
             }
             
         } catch (error) {
@@ -258,9 +264,22 @@ class App {
 
         try {
             // 获取当前项目和会话信息
-            const { projectId, sessionId } = this.projectManager.getCurrentSession();
+            const currentSession = this.projectManager.getCurrentSession();
+            let { projectId, sessionId } = currentSession;
             
-            // 发送API请求创建新会话，如果有项目和会话ID则包含
+            // 前回の会話が継続中の場合はそのセッションIDを使用
+            if (this.sessionId) {
+                sessionId = this.sessionId;
+            }
+            
+            // 追加: ユーザーメッセージをチャット履歴に追加
+            this.chatHistory.push({
+                role: 'user',
+                content: message,
+                created_at: new Date().toISOString()
+            });
+            
+            // 発送API要求創建新會話，如果有項目和會話ID則包含
             const payload = { 
                 prompt: message
             };
@@ -318,9 +337,16 @@ class App {
                 document.getElementById('stop-btn').disabled = true;
                 document.getElementById('status-indicator').textContent = '';
 
-                // 如果有结果，显示结果
+                // 如果有结果，显示结果并追加到チャット履歴に追加
                 if (data.result) {
                     this.chatManager.addAIMessage(data.result);
+                    
+                    // 追加: AIの回答をチャット履歴に追加
+                    this.chatHistory.push({
+                        role: 'assistant',
+                        content: data.result,
+                        created_at: new Date().toISOString()
+                    });
                 }
             }
         }
