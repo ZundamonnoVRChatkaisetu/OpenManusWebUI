@@ -16,7 +16,6 @@ class App {
         this.isProcessing = false;
         this.currentProjectId = null;
         this.chatHistory = []; // チャット履歴の保持
-        this.messageQueue = []; // 処理待ちメッセージのキュー
 
         // 初始化各个管理器
         this.websocketManager = new WebSocketManager(this.handleWebSocketMessage.bind(this));
@@ -71,7 +70,6 @@ class App {
         document.getElementById('clear-btn').addEventListener('click', () => {
             this.chatManager.clearMessages();
             this.chatHistory = []; // チャット履歴のクリア
-            this.messageQueue = []; // 処理待ちメッセージのキューをクリア
         });
 
         // 清除思考记录按钮
@@ -102,7 +100,6 @@ class App {
         // プロジェクト選択時にチャット履歴をクリア
         this.chatManager.clearMessages();
         this.chatHistory = []; // チャット履歴のクリア
-        this.messageQueue = []; // 処理待ちメッセージのキューをクリア
         
         // 工作区文件管理器に選択したプロジェクトIDを設定
         this.workspaceManager.setCurrentProjectId(projectId);
@@ -122,7 +119,6 @@ class App {
         // セッション選択時にチャット履歴をクリア
         this.chatManager.clearMessages();
         this.chatHistory = []; // チャット履歴のクリア
-        this.messageQueue = []; // 処理待ちメッセージのキューをクリア
         
         // セッション選択時に現在のプロジェクトIDを取得
         const { projectId } = this.projectManager.getCurrentSession();
@@ -254,42 +250,51 @@ class App {
         }
     }
 
-    // 処理中でも送信ボタンを有効にする
-    updateSendButtonState() {
-        // 送信ボタンを常に有効化（処理中でも）
-        document.getElementById('send-btn').disabled = false;
-        
-        // ステータスインジケータを更新
-        if (this.isProcessing) {
-            document.getElementById('status-indicator').textContent = t('processing_request') + ' ' + t('additional_instructions_enabled');
-        } else {
-            document.getElementById('status-indicator').textContent = '';
-        }
-    }
-
     // 处理发送消息
     async handleSendMessage(message) {
         if (!message.trim()) return;
 
-        // 処理中の場合はメッセージをキューに追加
-        if (this.isProcessing) {
-            // メッセージをキューに追加
-            this.messageQueue.push(message);
-            
-            // ユーザーメッセージをUIに追加
+        // 処理中の場合は追加指示として送信
+        if (this.isProcessing && this.sessionId) {
+            // 追加指示を表示
             this.chatManager.addUserMessage(message);
             
-            // 処理中の通知（翻訳関数を使用）
-            const queuedMessage = t('instruction_queued');
-            this.chatManager.addSystemMessage(queuedMessage);
-            
-            // 入力フィールドをクリア
-            document.getElementById('user-input').value = '';
+            // 追加指示を処理中のタスクに追加
+            try {
+                const response = await fetch(`/api/chat/${this.sessionId}/add_instruction`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ instruction: message }),
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to add instruction: ${response.status}`);
+                }
+                
+                // 追加指示の通知
+                this.chatManager.addSystemMessage(t('instruction_added'));
+                
+                // 入力フィールドをクリア
+                document.getElementById('user-input').value = '';
+                
+                // チャット履歴に追加
+                this.chatHistory.push({
+                    role: 'user',
+                    content: message,
+                    created_at: new Date().toISOString()
+                });
+                
+            } catch (error) {
+                console.error(t('add_instruction_error', { message: error.message }));
+                this.chatManager.addSystemMessage(t('error_occurred', { message: error.message }));
+            }
             
             return;
         }
 
-        // 処理中状態に設定
+        // 処理中状態に設定（最初のメッセージの場合）
         this.isProcessing = true;
         document.getElementById('stop-btn').disabled = false;
         document.getElementById('status-indicator').textContent = t('processing_request') + ' ' + t('additional_instructions_enabled');
@@ -348,9 +353,6 @@ class App {
 
             // 重置思考记录
             this.thinkingManager.clearThinking();
-            
-            // 更新送信ボタンの状態（処理中でも有効に）
-            this.updateSendButtonState();
 
         } catch (error) {
             console.error(t('send_message_error', { message: error.message }), error);
@@ -380,17 +382,6 @@ class App {
                         content: data.result,
                         created_at: new Date().toISOString()
                     });
-                }
-                
-                // キューにメッセージがある場合は処理
-                if (this.messageQueue.length > 0) {
-                    // キューの先頭からメッセージを取得
-                    const nextMessage = this.messageQueue.shift();
-                    
-                    // 次のメッセージを処理
-                    setTimeout(() => {
-                        this.handleSendMessage(nextMessage);
-                    }, 500); // 少し遅延を入れて処理
                 }
             }
         }
@@ -452,19 +443,10 @@ class App {
             }
 
             console.log('处理已停止');
-            const stoppedMessage = t('processing_stopped');
-            this.chatManager.addSystemMessage(stoppedMessage);
-            document.getElementById('status-indicator').textContent = stoppedMessage;
+            this.chatManager.addSystemMessage(t('processing_stopped'));
+            document.getElementById('status-indicator').textContent = t('processing_stopped');
             document.getElementById('stop-btn').disabled = true;
             this.isProcessing = false;
-            
-            // 処理が停止されたら、キューのメッセージもクリア
-            if (this.messageQueue.length > 0) {
-                const count = this.messageQueue.length;
-                const clearMessage = t('queued_messages_cleared', { count });
-                this.chatManager.addSystemMessage(clearMessage);
-                this.messageQueue = [];
-            }
 
         } catch (error) {
             console.error(t('stop_processing_error', { message: error.message }), error);
