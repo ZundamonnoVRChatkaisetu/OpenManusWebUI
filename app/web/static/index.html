@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenManus Web UI</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background-color: #1E1E1E;
+            color: #E0E0E0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: #4C6FFF;
+        }
+        
+        p {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            max-width: 600px;
+            line-height: 1.5;
+        }
+        
+        .ui-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+        
+        .ui-option {
+            background-color: #2D2D30;
+            border: 1px solid #3E3E42;
+            border-radius: 8px;
+            padding: 20px;
+            width: 250px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .ui-option:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            border-color: #4C6FFF;
+        }
+        
+        .ui-option img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            border: 1px solid #3E3E42;
+        }
+        
+        .ui-option h3 {
+            margin: 0 0 10px 0;
+            font-size: 1.2rem;
+        }
+        
+        .ui-option p {
+            font-size: 0.9rem;
+            margin: 0;
+            color: #A0A0A0;
+        }
+        
+        footer {
+            margin-top: 2rem;
+            font-size: 0.9rem;
+            color: #6E6E6E;
+        }
+        
+        footer a {
+            color: #4C6FFF;
+            text-decoration: none;
+        }
+        
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>OpenManus Web UI</h1>
+    <p>お好みのユーザーインターフェースを選択してください。</p>
+    
+    <div class="ui-options">
+        <div class="ui-option" onclick="location.href='connected_interface.html'">
+            <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTAgMTUwIj48cmVjdCB3aWR0aD0iMjUwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iIzMzMzMzMyIvPjx0ZXh0IHg9IjEyNSIgeT0iNzUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMiIgZmlsbD0iI2U2ZTZlNiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+T3BlbkEgTWFudXMgT3JpZ2luYWwgVUk8L3RleHQ+PC9zdmc+" alt="Original UI">
+            <h3>Original UI</h3>
+            <p>OpenManus Webの元のインターフェース</p>
+        </div>
+        
+        <div class="ui-option" onclick="location.href='connected_interface_manus.html'">
+            <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTAgMTUwIj48cmVjdCB3aWR0aD0iMjUwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iIzFlMWUxZSIvPjxyZWN0IHg9IjEwIiB5PSIxMCIgd2lkdGg9IjYwIiBoZWlnaHQ9IjEzMCIgZmlsbD0iIzI1MjUyNiIgcng9IjMiLz48cmVjdCB4PSI4MCIgeT0iMTAiIHdpZHRoPSIxNjAiIGhlaWdodD0iMzAiIGZpbGw9IiMyZDJkMzAiIHJ4PSIzIi8+PHJlY3QgeD0iODAiIHk9IjUwIiB3aWR0aD0iNzUiIGhlaWdodD0iOTAiIGZpbGw9IiMyZDJkMzAiIHJ4PSIzIi8+PHJlY3QgeD0iMTY1IiB5PSI1MCIgd2lkdGg9Ijc1IiBoZWlnaHQ9IjkwIiBmaWxsPSIjMWUxZTFlIiByeD0iMyIvPjx0ZXh0IHg9IjEyNSIgeT0iMTM1IiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM0YzZmZmYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPk1hbnVzIFVJPC90ZXh0Pjwvc3ZnPg==" alt="Manus UI">
+            <h3>Manus UI</h3>
+            <p>Manus.im風の洗練されたダークモードUI</p>
+        </div>
+    </div>
+    
+    <footer>
+        <p>OpenManus Web UI | <a href="https://github.com/ZundamonnoVRChatkaisetu/OpenManusWebUI" target="_blank">GitHub</a></p>
+    </footer>
+</body>
+</html>
