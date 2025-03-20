@@ -6,6 +6,7 @@ export class ChatManager {
         this.userInput = document.getElementById('user-input');
         this.sendButton = document.getElementById('send-btn');
         this.sendMessageCallback = sendMessageCallback;
+        this.isWaitingForUserInput = false; // 追加: ユーザー入力待機状態の管理
     }
 
     // 初始化聊天管理器
@@ -27,6 +28,16 @@ export class ChatManager {
         this.userInput.addEventListener('input', () => {
             this.adjustTextareaHeight();
         });
+        
+        // 追加: フォーカス時にテキストエリアを強調
+        this.userInput.addEventListener('focus', () => {
+            this.userInput.classList.add('focused');
+        });
+        
+        // 追加: フォーカスが外れたときにテキストエリアの強調を解除
+        this.userInput.addEventListener('blur', () => {
+            this.userInput.classList.remove('focused');
+        });
     }
 
     // 发送消息
@@ -42,6 +53,9 @@ export class ChatManager {
         // 清空输入框
         this.userInput.value = '';
         this.adjustTextareaHeight();
+        
+        // 追加: ユーザー入力待機状態を解除
+        this.isWaitingForUserInput = false;
     }
 
     // 添加用户消息
@@ -60,6 +74,10 @@ export class ChatManager {
         if (scrollToBottom) {
             this.scrollToBottom();
         }
+        
+        // 追加: モデルが応答したら、入力フィールドにフォーカスして入力を促す
+        this.userInput.focus();
+        this.isWaitingForUserInput = true; // 追加: ユーザー入力待機状態に設定
     }
 
     // 添加系统消息
@@ -144,6 +162,7 @@ export class ChatManager {
     // 清除所有消息
     clearMessages() {
         this.chatContainer.innerHTML = '';
+        this.isWaitingForUserInput = false; // 追加: ユーザー入力待機状態をリセット
     }
 
     // 滚动到底部
@@ -180,5 +199,31 @@ export class ChatManager {
         
         // 最後までスクロール
         this.scrollToBottom();
+        
+        // 追加: メッセージ履歴の最後がAIからの応答なら、ユーザー入力待機状態に設定
+        if (sortedMessages.length > 0 && sortedMessages[sortedMessages.length - 1].role === 'assistant') {
+            this.isWaitingForUserInput = true;
+            this.userInput.focus();
+        }
+    }
+    
+    // 追加: ユーザー入力待機状態を取得
+    isWaitingForInput() {
+        return this.isWaitingForUserInput;
+    }
+    
+    // 追加: ユーザー入力を促す視覚的な合図を表示
+    showInputPrompt() {
+        // 入力フィールドの周りに点滅するボーダーを表示するなど
+        if (this.isWaitingForUserInput) {
+            this.userInput.classList.add('waiting-input');
+            // フォーカスを入力フィールドに設定
+            this.userInput.focus();
+            // プレースホルダーテキストを変更
+            this.userInput.placeholder = '続けて指示できます...';
+        } else {
+            this.userInput.classList.remove('waiting-input');
+            this.userInput.placeholder = 'メッセージを入力してください...';
+        }
     }
 }
