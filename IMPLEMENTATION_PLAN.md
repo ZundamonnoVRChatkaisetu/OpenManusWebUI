@@ -104,10 +104,11 @@
     - CSSとJavaScriptファイルの作成
     - app.pyの修正
 
-21. ✅ **ブラウザーツール使用時のエラー修正**（2025-03-21）
-    - PlaywrightとNotImplementedErrorの問題対処
-    - ブラウザーツールの無効化処理追加
-    - 依存関係の整理
+21. ✅ **ブラウザーツールのクロスプラットフォーム対応**（2025-03-21）
+    - Windows環境のPlaywrightエラー対応
+    - 代替実装メカニズムの追加
+    - 複数ブラウザバックエンド対応
+    - エラーハンドリング強化
 
 ## ディレクトリ構成と主要ファイルの役割
 
@@ -164,6 +165,7 @@ OpenManusWebUI/
 - **app/web/tools/tool_manager.py**: ツール管理
 - **app/web/tools/github_tool.py**: GitHub連携
 - **app/web/tools/web_search_tool.py**: Web検索
+- **app/tool/browser_use_tool_fixed.py**: クロスプラットフォーム対応ブラウザツール
 
 #### ユーティリティ
 - **app/utils/language_utils.py**: 言語検出
