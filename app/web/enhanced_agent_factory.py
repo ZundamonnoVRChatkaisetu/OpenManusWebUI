@@ -5,7 +5,7 @@
 import os
 from typing import Optional
 
-from app.agent.enhanced_manus import EnhancedManus
+from app.agent.enhanced_manus_fixed import EnhancedManus
 from app.utils.language_utils import Language
 
 
