@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 """
 思考跟踪器模块，实现Manus风格的任务进展日志系统
 """
@@ -33,6 +34,13 @@ TRANSLATIONS = {
         'warning': '警告',
         'error': '错误',
         'communication': '通信',
+        'tool_usage': '使用工具',
+        'terminal_command': '执行命令',
+        'browser_operation': '浏览器操作',
+        'file_operation': '文件操作',
+        'api_request': 'API请求',
+        'github_operation': 'GitHub操作',
+        'database_operation': '数据库操作'
     },
     'en-US': {
         'start_processing': 'Start processing user request',
@@ -55,6 +63,13 @@ TRANSLATIONS = {
         'warning': 'Warning',
         'error': 'Error',
         'communication': 'Communication',
+        'tool_usage': 'Using Tool',
+        'terminal_command': 'Terminal Command',
+        'browser_operation': 'Browser Operation',
+        'file_operation': 'File Operation',
+        'api_request': 'API Request',
+        'github_operation': 'GitHub Operation',
+        'database_operation': 'Database Operation'
     },
     'ja-JP': {
         'start_processing': 'ユーザーリクエストの処理を開始',
@@ -77,6 +92,13 @@ TRANSLATIONS = {
         'warning': '警告',
         'error': 'エラー',
         'communication': '通信',
+        'tool_usage': 'ツール使用',
+        'terminal_command': 'ターミナルコマンド',
+        'browser_operation': 'ブラウザ操作',
+        'file_operation': 'ファイル操作',
+        'api_request': 'APIリクエスト',
+        'github_operation': 'GitHub操作',
+        'database_operation': 'データベース操作'
     }
 }
 
@@ -110,7 +132,7 @@ class ThinkingStep:
         self, message: str, step_type: str = "thinking", details: Optional[str] = None
     ):
         self.message = message
-        self.step_type = step_type  # thinking, conclusion, error, communication
+        self.step_type = step_type  # thinking, conclusion, error, communication, tool_usage
         self.details = details  # 用于存储通信内容或详细信息
         self.timestamp = time.time()
 
@@ -180,7 +202,7 @@ class ThinkingTracker:
                     # Attempt to extract step number and total steps from the message
                     import re
 
-                    match = re.search(r"Executing step (\d+)/(\d+)", message)
+                    match = re.search(r"Executing step (\\d+)/(\\d+)", message)
                     if match:
                         current_step_num = int(match.group(1))
                         total_steps = int(match.group(2))
@@ -218,6 +240,35 @@ class ThinkingTracker:
 
         message = f"{direction} {t('communication')}"
         step = ThinkingStep(message, "communication", content)
+        with cls._lock:
+            if session_id in cls._session_steps:
+                cls._session_steps[session_id].append(step)
+
+    @classmethod
+    def add_tool_usage(
+        cls, session_id: str, tool_type: str, action: str, details: Optional[str] = None
+    ) -> None:
+        """添加一个工具使用记录
+
+        Args:
+            session_id: 会话ID
+            tool_type: 工具类型，如 "terminal", "browser", "file", "api", "github"
+            action: 操作，如 "execute", "navigate", "read", "write", "get", "post"
+            details: 操作详情，如命令内容、URL等
+        """
+        # 工具类型和操作的多语言处理
+        tool_type_key = {
+            "terminal": "terminal_command",
+            "browser": "browser_operation", 
+            "file": "file_operation",
+            "api": "api_request",
+            "github": "github_operation",
+            "database": "database_operation"
+        }.get(tool_type, "tool_usage")
+        
+        # 创建消息
+        message = f"{t(tool_type_key)}: {action}"
+        step = ThinkingStep(message, "tool_usage", details)
         with cls._lock:
             if session_id in cls._session_steps:
                 cls._session_steps[session_id].append(step)
@@ -359,6 +410,10 @@ class ThinkingTracker:
                     cls.add_thinking_step(session_id, f"{t('complete')}: {msg}")
                 else:
                     cls.add_thinking_step(session_id, f"{t('info')}: {msg}")
+                    
+                # ツール使用の検出と記録
+                cls._detect_and_add_tool_usage(session_id, msg)
+                    
             elif entry.get("level") == "ERROR":
                 cls.add_error(session_id, f"{t('error')}: {msg}")
             elif entry.get("level") == "WARNING":
@@ -369,6 +424,67 @@ class ThinkingTracker:
 
         # 添加日志后立即通知 WebSocket 客户端
         cls._notify_ws_log_update(session_id, entry)
+        
+    @classmethod
+    def _detect_and_add_tool_usage(cls, session_id: str, message: str):
+        """ログメッセージからツール使用を検出して記録する"""
+        import re
+        
+        # ターミナルコマンド実行の検出
+        terminal_pattern = r'実行(?:中|します).*?`([^`]+)`|command[:\s]+["|\'"]?([^"|\'"\s]+)["|\'"]?'
+        match = re.search(terminal_pattern, message, re.IGNORECASE)
+        if match:
+            command = match.group(1) or match.group(2)
+            cls.add_tool_usage(session_id, "terminal", "execute", command)
+            return
+            
+        # ブラウザ操作の検出
+        browser_pattern = r'URL[:\s]+["|\'"]?(https?:\/\/[^\s"\']+)["|\'"]?|ブラウザで.*?開(?:きます|いています).*?["|\'"]?(https?:\/\/[^\s"\']+)["|\'"]?'
+        match = re.search(browser_pattern, message, re.IGNORECASE)
+        if match:
+            url = match.group(1) or match.group(2)
+            cls.add_tool_usage(session_id, "browser", "navigate", url)
+            return
+            
+        # ファイル操作の検出
+        file_pattern = r'ファイル[:\s]+["|\'"]?([^"\'\s]+\.[a-zA-Z0-9]+)["|\'"]?|reading\sfile[:\s]+["|\'"]?([^"\'\s]+\.[a-zA-Z0-9]+)["|\'"]?'
+        match = re.search(file_pattern, message, re.IGNORECASE)
+        if match:
+            filename = match.group(1) or match.group(2)
+            action = "read"
+            if "作成" in message or "create" in message.lower():
+                action = "create"
+            elif "書き込み" in message or "write" in message.lower():
+                action = "write"
+            elif "更新" in message or "update" in message.lower():
+                action = "update"
+            elif "削除" in message or "delete" in message.lower():
+                action = "delete"
+            cls.add_tool_usage(session_id, "file", action, filename)
+            return
+            
+        # API操作の検出
+        api_pattern = r'API[:\s]+["|\'"]?([^"\']+)["|\'"]?|endpoint[:\s]+["|\'"]?([^"\']+)["|\'"]?'
+        match = re.search(api_pattern, message, re.IGNORECASE)
+        if match:
+            endpoint = match.group(1) or match.group(2)
+            method = "GET"
+            if "POST" in message or "作成" in message or "create" in message.lower():
+                method = "POST"
+            elif "PUT" in message or "更新" in message or "update" in message.lower():
+                method = "PUT"
+            elif "DELETE" in message or "削除" in message or "delete" in message.lower():
+                method = "DELETE"
+            cls.add_tool_usage(session_id, "api", method, endpoint)
+            return
+            
+        # GitHub操作の検出
+        github_pattern = r'GitHub.*?リポジトリ[:\s]+["|\'"]?([^"\']+)["|\'"]?|clone.*?["|\'"]?(https:\/\/github\.com\/[^"\']+)["|\'"]?'
+        match = re.search(github_pattern, message, re.IGNORECASE)
+        if match:
+            repo = match.group(1) or match.group(2)
+            cls.add_tool_usage(session_id, "github", "access", repo)
+            return
 
     @classmethod
     def _notify_ws_log_update(cls, session_id: str, log_entry: Dict):
@@ -397,8 +513,8 @@ class ThinkingTracker:
         import re
 
         # 尝试从日志中提取步骤信息
-        step_match = re.search(r"步骤 (\d+)/(\d+)", message) or re.search(
-            r"Step (\d+)/(\d+)", message
+        step_match = re.search(r"步骤 (\\d+)/(\\d+)", message) or re.search(
+            r"Step (\\d+)/(\\d+)", message
         )
         if step_match and session_id in cls._session_progress:
             current_step = int(step_match.group(1))
