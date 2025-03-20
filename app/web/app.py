@@ -70,6 +70,9 @@ active_sessions: Dict[str, dict] = {}
 # 存储任务取消事件
 cancel_events: Dict[str, asyncio.Event] = {}
 
+# 存储处理中任务的上下文信息 - 追加指示用
+active_tasks: Dict[str, dict] = {}
+
 # 创建工作区根目录
 WORKSPACE_ROOT = Path(__file__).parent.parent.parent / "workspace"
 WORKSPACE_ROOT.mkdir(exist_ok=True)
@@ -129,6 +132,10 @@ class SessionRequest(BaseModel):
 
 class LanguageRequest(BaseModel):
     language: str
+
+
+class AdditionalInstructionRequest(BaseModel):
+    instruction: str
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -443,6 +450,14 @@ async def create_chat_session(
     # 既存のactive_sessionsを更新
     workspace_dir = Path(workspace_path)
     active_sessions[session_id]["workspace"] = workspace_path
+    
+    # タスク上下文情報を保存
+    active_tasks[session_id] = {
+        "original_prompt": chat_req.prompt,
+        "additional_instructions": [],
+        "project_id": project_id,
+        "modified": False
+    }
 
     background_tasks.add_task(process_prompt, session_id, chat_req.prompt, project_id)
     return {
@@ -450,6 +465,35 @@ async def create_chat_session(
         "project_id": project_id,
         "workspace": workspace_path,
     }
+
+
+@app.post("/api/chat/{session_id}/add_instruction")
+async def add_instruction(session_id: str, instruction_req: AdditionalInstructionRequest):
+    """追加指示を現在実行中のタスクに追加する"""
+    if session_id not in active_sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    if active_sessions[session_id]["status"] != "processing":
+        raise HTTPException(status_code=400, detail="Session is not in processing state")
+    
+    # 追加指示をタスク上下文に保存
+    if session_id in active_tasks:
+        active_tasks[session_id]["additional_instructions"].append(instruction_req.instruction)
+        active_tasks[session_id]["modified"] = True
+        
+        # データベースに追加指示を保存
+        message_id = str(uuid.uuid4())
+        db.create_message(message_id, session_id, "user", instruction_req.instruction)
+        
+        # ログに追加
+        ThinkingTracker.add_thinking_step(
+            session_id, 
+            f"追加指示を受信しました: {instruction_req.instruction[:50]}{'...' if len(instruction_req.instruction) > 50 else ''}"
+        )
+        
+        return {"success": True, "message": "Instruction added successfully"}
+    else:
+        raise HTTPException(status_code=400, detail="Task context not found")
 
 
 @app.get("/api/chat/{session_id}")
@@ -698,6 +742,34 @@ class LLMCommunicationTracker:
                     t('send_to_llm'),
                     prompt[:500] + ("..." if len(prompt) > 500 else ""),
                 )
+                
+                # 追加指示がある場合は統合する
+                if session_id in active_tasks and active_tasks[session_id]["modified"]:
+                    additional_instructions = active_tasks[session_id]["additional_instructions"]
+                    if additional_instructions:
+                        # 追加指示を組み合わせた新しいプロンプトを生成
+                        combined_instructions = "\n\n追加指示:\n" + "\n".join(additional_instructions)
+                        
+                        # 元のプロンプトに追加指示を追加
+                        if isinstance(prompt, str):
+                            prompt = prompt + combined_instructions
+                            
+                            # kwargsまたはargsを更新
+                            if "prompt" in kwargs:
+                                kwargs["prompt"] = prompt
+                            else:
+                                args = list(args)  # tupleからlistに変換して修正
+                                args[0] = prompt
+                                args = tuple(args)  # listからtupleに戻す
+                                
+                            # 追加指示を統合したことを記録
+                            ThinkingTracker.add_thinking_step(
+                                session_id,
+                                f"追加指示 ({len(additional_instructions)}件) をタスクに統合しました"
+                            )
+                            
+                            # 修正フラグをリセット
+                            active_tasks[session_id]["modified"] = False
 
             # 调用原始方法
             result = await original_method(*args, **kwargs)
@@ -1082,6 +1154,21 @@ async def process_prompt(session_id: str, prompt: str, project_id: Optional[str]
                     ThinkingTracker.add_communication(
                         session_id, t('send_to_llm'), prompt_content
                     )
+                    
+                    # 追加指示があれば統合
+                    if session_id in active_tasks and active_tasks[session_id]["modified"]:
+                        additional_instructions = active_tasks[session_id]["additional_instructions"]
+                        if additional_instructions:
+                            # 追加指示を組み合わせた情報を表示
+                            ThinkingTracker.add_thinking_step(
+                                session_id,
+                                f"追加指示 ({len(additional_instructions)}件) をタスクに統合します"
+                            )
+                            for idx, instruction in enumerate(additional_instructions):
+                                ThinkingTracker.add_thinking_step(
+                                    session_id,
+                                    f"追加指示 {idx+1}: {instruction[:100]}{'...' if len(instruction) > 100 else ''}"
+                                )
 
                 def on_after_request(data):
                     # 提取响应内容
@@ -1219,6 +1306,10 @@ async def process_prompt(session_id: str, prompt: str, project_id: Optional[str]
             active_sessions[session_id][
                 "thinking_steps"
             ] = ThinkingTracker.get_thinking_steps(session_id)
+            
+            # タスク上下文をクリア
+            if session_id in active_tasks:
+                del active_tasks[session_id]
 
     except asyncio.CancelledError:
         # 处理取消情况
