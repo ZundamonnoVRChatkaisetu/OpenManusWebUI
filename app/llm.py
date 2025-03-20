@@ -185,7 +185,7 @@ class LLM:
         self,
         messages: List[Union[dict, Message]],
         system_msgs: Optional[List[Union[dict, Message]]] = None,
-        timeout: int = 120,  # タイムアウト値を60秒から120秒に増加
+        timeout: int = 300,  # タイムアウト値を120秒から300秒に増加
         tools: Optional[List[dict]] = None,
         tool_choice: Literal["none", "auto", "required"] = "auto",
         temperature: Optional[float] = None,
@@ -197,7 +197,7 @@ class LLM:
         Args:
             messages: List of conversation messages
             system_msgs: Optional system messages to prepend
-            timeout: Request timeout in seconds (default: 120s)
+            timeout: Request timeout in seconds (default: 300s)
             tools: List of tools to use
             tool_choice: Tool choice strategy
             temperature: Sampling temperature for the response
