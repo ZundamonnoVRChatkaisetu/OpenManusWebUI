@@ -254,13 +254,14 @@ class BrowserUseTool(BaseTool):
         """
         ブラウザアクションを実行
         """
+        global _browser_module  # globalキーワードを使用位置の前に移動
+        
         if not _browser_use_available:
             return ToolResult(error="ブラウザツールが利用できません: 必要なライブラリがインストールされていません")
 
         # Windows環境ではSeleniumを強制
         if _is_windows and _browser_module != "selenium":
             logger.warning("Windows環境でSelenium以外のバックエンドが指定されています。強制的にSeleniumを使用します。")
-            global _browser_module
             _browser_module = "selenium"
 
         async with self.lock:
