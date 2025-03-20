@@ -9,9 +9,7 @@ from app.agent.manus import Manus
 from app.agent.toolcall import ToolCallAgent
 from app.logger import logger
 from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
-from app.tool import Terminate, ToolCollection
-# ブラウザツールの読み込みを無効化
-# from app.tool.browser_use_tool import BrowserUseTool
+from app.tool import Terminate, ToolCollection, BrowserUseTool
 from app.tool.file_saver import FileSaver, SaveFileParams
 from app.tool.google_search import GoogleSearch
 from app.tool.python_execute import PythonExecute
