@@ -84,6 +84,7 @@ export const translations = {
         'project_rename_failed': '重命名项目失败',
         'session_delete_failed': '删除会话失败',
         'session_rename_failed': '重命名会话失败',
+        'add_instruction_error': '添加指示错误: {message}',
         
         // 系统消息
         'error_occurred': '发生错误: {message}',
@@ -107,6 +108,7 @@ export const translations = {
         
         // 追加指示関連
         'additional_instructions_enabled': '(可以继续输入指令)',
+        'instruction_added': '已添加指示，正在更新执行中的任务...',
         'instruction_queued': '您的指令已加入队列，将在当前处理完成后执行',
         'queued_messages_cleared': '已清除 {count} 条排队消息',
         'tool_settings': '工具设置'
@@ -187,6 +189,7 @@ export const translations = {
         'project_rename_failed': 'Failed to rename project',
         'session_delete_failed': 'Failed to delete session',
         'session_rename_failed': 'Failed to rename session',
+        'add_instruction_error': 'Error adding instruction: {message}',
         
         // 系统消息
         'error_occurred': 'Error occurred: {message}',
@@ -209,7 +212,8 @@ export const translations = {
         'sent_to_server': 'Sent to server...',
         
         // 追加指示関連
-        'additional_instructions_enabled': '(You can continue to add instructions)',
+        'additional_instructions_enabled': '(You can add additional instructions)',
+        'instruction_added': 'Instruction added, updating current task...',
         'instruction_queued': 'Your instruction has been queued and will be processed after the current task is completed',
         'queued_messages_cleared': 'Cleared {count} queued messages',
         'tool_settings': 'Tool Settings'
@@ -290,6 +294,7 @@ export const translations = {
         'project_rename_failed': 'プロジェクト名変更に失敗しました',
         'session_delete_failed': 'セッション削除に失敗しました',
         'session_rename_failed': 'セッション名変更に失敗しました',
+        'add_instruction_error': '追加指示の送信エラー: {message}',
         
         // システムメッセージ
         'error_occurred': 'エラーが発生しました: {message}',
@@ -313,6 +318,7 @@ export const translations = {
         
         // 追加指示関連
         'additional_instructions_enabled': '(追加指示の入力が可能です)',
+        'instruction_added': '指示を追加しました。現在のタスクを更新しています...',
         'instruction_queued': '指示はキューに追加されました。現在の処理完了後に実行されます',
         'queued_messages_cleared': '{count}件のキュー内メッセージをクリアしました',
         'tool_settings': 'ツール設定'
