@@ -6,6 +6,7 @@ import time
 import signal
 import threading
 import platform
+import logging
 from pathlib import Path
 import io
 
@@ -149,6 +150,41 @@ def ensure_directories():
         init_file.touch()
 
 
+# uvicornのログレベルを設定
+def configure_uvicorn_logging(log_level="warning"):
+    log_level = log_level.lower()
+    # ログレベル名を対応するロギングモジュールの定数に変換
+    level_map = {
+        "debug": logging.DEBUG,
+        "info": logging.INFO,
+        "warning": logging.WARNING,
+        "error": logging.ERROR,
+        "critical": logging.CRITICAL
+    }
+    
+    level = level_map.get(log_level, logging.WARNING)
+    
+    # uvicornの各ロガーのレベルを設定
+    loggers = [
+        "uvicorn",
+        "uvicorn.access",
+        "uvicorn.error",
+        "websockets",
+        "websockets.protocol"
+    ]
+    
+    for logger_name in loggers:
+        logger = logging.getLogger(logger_name)
+        logger.setLevel(level)
+    
+    # 基本設定も変更
+    logging.basicConfig(
+        level=level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+
+
 if __name__ == "__main__":
     # コマンドライン引数の追加
     parser = argparse.ArgumentParser(description="OpenManus Webアプリケーションサーバー")
@@ -157,8 +193,14 @@ if __name__ == "__main__":
     parser.add_argument("--lmstudio", action="store_true", help="LMStudioサーバーも同時に起動する")
     parser.add_argument("--lm-port", type=int, default=1234, help="LMStudioサーバーのポート (デフォルト: 1234)")
     parser.add_argument("--lm-gui", action="store_true", help="LMStudioをGUIモードで起動する")
+    parser.add_argument("--log-level", type=str, default="warning", 
+                      choices=["debug", "info", "warning", "error", "critical"], 
+                      help="ログレベル (デフォルト: warning)")
 
     args = parser.parse_args()
+    
+    # ロギングの設定
+    configure_uvicorn_logging(args.log_level)
 
     ensure_directories()
 
@@ -193,7 +235,14 @@ if __name__ == "__main__":
 
     try:
         # OpenManus Web UIサーバー起動
-        uvicorn.run("app.web.app:app", host="0.0.0.0", port=port, reload=True)
+        # log_levelパラメータを追加してuvicornのログレベルを制御
+        uvicorn.run(
+            "app.web.app:app", 
+            host="0.0.0.0", 
+            port=port, 
+            reload=True, 
+            log_level=args.log_level
+        )
     finally:
         # 終了時のクリーンアップ
         cleanup_lmstudio()
