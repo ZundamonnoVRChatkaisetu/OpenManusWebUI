@@ -15,7 +15,8 @@ class App {
         this.sessionId = null;
         this.isProcessing = false;
         this.currentProjectId = null;
-        this.chatHistory = []; // 追加：チャット履歴の保持
+        this.chatHistory = []; // チャット履歴の保持
+        this.messageQueue = []; // 追加: 処理待ちメッセージのキュー
 
         // 初始化各个管理器
         this.websocketManager = new WebSocketManager(this.handleWebSocketMessage.bind(this));
@@ -69,7 +70,8 @@ class App {
         // 清除按钮
         document.getElementById('clear-btn').addEventListener('click', () => {
             this.chatManager.clearMessages();
-            this.chatHistory = []; // 追加：チャット履歴のクリア
+            this.chatHistory = []; // チャット履歴のクリア
+            this.messageQueue = []; // 処理待ちメッセージのキューをクリア
         });
 
         // 清除思考记录按钮
@@ -99,7 +101,8 @@ class App {
         
         // プロジェクト選択時にチャット履歴をクリア
         this.chatManager.clearMessages();
-        this.chatHistory = []; // 追加：チャット履歴のクリア
+        this.chatHistory = []; // チャット履歴のクリア
+        this.messageQueue = []; // 処理待ちメッセージのキューをクリア
         
         // 工作区文件管理器に選択したプロジェクトIDを設定
         this.workspaceManager.setCurrentProjectId(projectId);
@@ -118,7 +121,8 @@ class App {
         
         // セッション選択時にチャット履歴をクリア
         this.chatManager.clearMessages();
-        this.chatHistory = []; // 追加：チャット履歴のクリア
+        this.chatHistory = []; // チャット履歴のクリア
+        this.messageQueue = []; // 処理待ちメッセージのキューをクリア
         
         // セッション選択時に現在のプロジェクトIDを取得
         const { projectId } = this.projectManager.getCurrentSession();
@@ -145,7 +149,7 @@ class App {
             // チャット履歴があれば表示
             if (sessionData.messages && sessionData.messages.length > 0) {
                 this.loadChatHistory(sessionData.messages);
-                // 追加：チャット履歴を内部状態に保存
+                // チャット履歴を内部状態に保存
                 this.chatHistory = sessionData.messages;
             }
             
@@ -250,17 +254,44 @@ class App {
         }
     }
 
+    // 処理中でも送信ボタンを有効にする
+    updateSendButtonState() {
+        // 送信ボタンを常に有効化（処理中でも）
+        document.getElementById('send-btn').disabled = false;
+        
+        // ステータスインジケータを更新
+        if (this.isProcessing) {
+            document.getElementById('status-indicator').textContent = t('processing_request') + ' ' + t('additional_instructions_enabled');
+        } else {
+            document.getElementById('status-indicator').textContent = '';
+        }
+    }
+
     // 处理发送消息
     async handleSendMessage(message) {
+        if (!message.trim()) return;
+
+        // 処理中の場合はメッセージをキューに追加
         if (this.isProcessing) {
-            console.log(t('processing_in_progress'));
+            // メッセージをキューに追加
+            this.messageQueue.push(message);
+            
+            // ユーザーメッセージをUIに追加
+            this.chatManager.addUserMessage(message);
+            
+            // 処理中の通知
+            this.chatManager.addSystemMessage(t('instruction_queued'));
+            
+            // 入力フィールドをクリア
+            document.getElementById('user-input').value = '';
+            
             return;
         }
 
+        // 処理中状態に設定
         this.isProcessing = true;
-        document.getElementById('send-btn').disabled = true;
         document.getElementById('stop-btn').disabled = false;
-        document.getElementById('status-indicator').textContent = t('processing_request');
+        document.getElementById('status-indicator').textContent = t('processing_request') + ' ' + t('additional_instructions_enabled');
 
         try {
             // 获取当前项目和会话信息
@@ -272,7 +303,7 @@ class App {
                 sessionId = this.sessionId;
             }
             
-            // 追加: ユーザーメッセージをチャット履歴に追加
+            // ユーザーメッセージをチャット履歴に追加
             this.chatHistory.push({
                 role: 'user',
                 content: message,
@@ -316,12 +347,14 @@ class App {
 
             // 重置思考记录
             this.thinkingManager.clearThinking();
+            
+            // 更新送信ボタンの状態（処理中でも有効に）
+            this.updateSendButtonState();
 
         } catch (error) {
             console.error(t('send_message_error', { message: error.message }), error);
             this.chatManager.addSystemMessage(t('error_occurred', { message: error.message }));
             this.isProcessing = false;
-            document.getElementById('send-btn').disabled = false;
             document.getElementById('stop-btn').disabled = true;
             document.getElementById('status-indicator').textContent = '';
         }
@@ -333,7 +366,6 @@ class App {
         if (data.status) {
             if (data.status === 'completed' || data.status === 'error' || data.status === 'stopped') {
                 this.isProcessing = false;
-                document.getElementById('send-btn').disabled = false;
                 document.getElementById('stop-btn').disabled = true;
                 document.getElementById('status-indicator').textContent = '';
 
@@ -341,12 +373,23 @@ class App {
                 if (data.result) {
                     this.chatManager.addAIMessage(data.result);
                     
-                    // 追加: AIの回答をチャット履歴に追加
+                    // AIの回答をチャット履歴に追加
                     this.chatHistory.push({
                         role: 'assistant',
                         content: data.result,
                         created_at: new Date().toISOString()
                     });
+                }
+                
+                // キューにメッセージがある場合は処理
+                if (this.messageQueue.length > 0) {
+                    // キューの先頭からメッセージを取得
+                    const nextMessage = this.messageQueue.shift();
+                    
+                    // 次のメッセージを処理
+                    setTimeout(() => {
+                        this.handleSendMessage(nextMessage);
+                    }, 500); // 少し遅延を入れて処理
                 }
             }
         }
@@ -410,9 +453,14 @@ class App {
             console.log('处理已停止');
             this.chatManager.addSystemMessage(t('processing_stopped'));
             document.getElementById('status-indicator').textContent = t('processing_stopped');
-            document.getElementById('send-btn').disabled = false;
             document.getElementById('stop-btn').disabled = true;
             this.isProcessing = false;
+            
+            // 処理が停止されたら、キューのメッセージもクリア
+            if (this.messageQueue.length > 0) {
+                this.chatManager.addSystemMessage(t('queued_messages_cleared', { count: this.messageQueue.length }));
+                this.messageQueue = [];
+            }
 
         } catch (error) {
             console.error(t('stop_processing_error', { message: error.message }), error);
