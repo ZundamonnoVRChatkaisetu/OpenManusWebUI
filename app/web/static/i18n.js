@@ -103,7 +103,13 @@ export const translations = {
         'refreshing': '刷新中...',
 
         // 发送状态
-        'sent_to_server': '已送接到服务器...'
+        'sent_to_server': '已送接到服务器...',
+        
+        // 追加指示関連
+        'additional_instructions_enabled': '(可以继续输入指令)',
+        'instruction_queued': '您的指令已加入队列，将在当前处理完成后执行',
+        'queued_messages_cleared': '已清除 {count} 条排队消息',
+        'tool_settings': '工具设置'
     },
     
     // 英文翻译
@@ -200,7 +206,13 @@ export const translations = {
         'refreshing': 'Refreshing...',
 
         // 发送状态
-        'sent_to_server': 'Sent to server...'
+        'sent_to_server': 'Sent to server...',
+        
+        // 追加指示関連
+        'additional_instructions_enabled': '(You can continue to add instructions)',
+        'instruction_queued': 'Your instruction has been queued and will be processed after the current task is completed',
+        'queued_messages_cleared': 'Cleared {count} queued messages',
+        'tool_settings': 'Tool Settings'
     },
 
     // 日本語翻訳
@@ -297,7 +309,13 @@ export const translations = {
         'refreshing': '更新中...',
 
         // 送信状態
-        'sent_to_server': 'サーバーに送信済み...'
+        'sent_to_server': 'サーバーに送信済み...',
+        
+        // 追加指示関連
+        'additional_instructions_enabled': '(追加指示の入力が可能です)',
+        'instruction_queued': '指示はキューに追加されました。現在の処理完了後に実行されます',
+        'queued_messages_cleared': '{count}件のキュー内メッセージをクリアしました',
+        'tool_settings': 'ツール設定'
     }
 };
 
