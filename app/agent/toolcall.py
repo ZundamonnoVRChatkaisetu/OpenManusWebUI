@@ -30,7 +30,7 @@ class ToolCallAgent(ReActAgent):
 
     tool_calls: List[ToolCall] = Field(default_factory=list)
 
-    max_steps: int = 30
+    max_steps: int = 100  # max_stepsを30から100に増加
 
     async def think(self) -> bool:
         """Process current state and decide next actions using tools"""
