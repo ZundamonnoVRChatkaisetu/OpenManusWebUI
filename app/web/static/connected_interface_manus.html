@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenManus Web</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/manus_ui.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/visualizers.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <!-- ヘッダー -->
+        <header>
+            <div class="header-left">
+                <div class="nav-links">
+                    <a href="/static/tool_settings.html" id="tool-settings-link" data-i18n="tool_settings">
+                        <i class="fas fa-cog"></i> <span>ツール設定</span>
+                    </a>
+                </div>
+            </div>
+            
+            <div class="header-center">
+                <h1 data-i18n="app_title">OpenManus <span class="emoji">🐱</span></h1>
+                <p class="subtitle" data-i18n="app_subtitle">AI智能助手 - 开源版</p>
+            </div>
+            
+            <div class="header-right">
+                <div class="language-selector">
+                    <select id="language-selector" aria-label="Language selector">
+                        <option value="zh-CN">中文</option>
+                        <option value="en-US">English</option>
+                        <option value="ja-JP">日本語</option>
+                    </select>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="app-container">
+                <!-- サイドバー -->
+                <div class="sidebar">
+                    <div class="sidebar-section">
+                        <h3 data-i18n="projects">プロジェクト</h3>
+                        <div id="project-list" class="project-list">
+                            <!-- プロジェクトリストはJavaScriptで動的に生成 -->
+                        </div>
+                        <div class="sidebar-buttons">
+                            <button id="new-project-btn" class="btn-primary" data-i18n="new_project">新規</button>
+                            <button id="rename-project-btn" class="btn-edit" data-i18n="rename_project">名前変更</button>
+                            <button id="delete-project-btn" class="btn-danger" data-i18n="delete_project">削除</button>
+                        </div>
+                    </div>
+                    
+                    <div class="sidebar-section">
+                        <h3 data-i18n="sessions">セッション</h3>
+                        <div id="session-list" class="session-list">
+                            <!-- セッションリストはJavaScriptで動的に生成 -->
+                        </div>
+                        <div class="sidebar-buttons">
+                            <button id="new-session-btn" class="btn-primary" data-i18n="new_session">新規</button>
+                            <button id="rename-session-btn" class="btn-edit" data-i18n="rename_session">名前変更</button>
+                            <button id="delete-session-btn" class="btn-danger" data-i18n="delete_session">削除</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- メインコンテンツ -->
+                <div class="main-content">
+                    <!-- プロジェクト詳細パネル -->
+                    <div id="project-details" class="project-details-panel">
+                        <div class="project-details-header">
+                            <h3 data-i18n="project_details">プロジェクト詳細</h3>
+                            <button id="save-project-btn" class="btn-primary" data-i18n="save_project">保存</button>
+                        </div>
+                        <input type="text" id="project-name" class="project-name-input" placeholder="プロジェクト名" data-i18n="project_name_placeholder">
+                        <h3 data-i18n="project_instructions">プロジェクト指示</h3>
+                        <textarea id="project-instructions" class="project-instructions-textarea" placeholder="プロジェクト指示を入力" data-i18n="project_instructions_placeholder"></textarea>
+                    </div>
+
+                    <!-- セッション情報 -->
+                    <div class="session-info">
+                        <div class="session-title-display">未選択</div>
+                    </div>
+
+                    <!-- パネルコンテナ -->
+                    <div class="panel-container">
+                        <!-- 左パネル - 処理状況 -->
+                        <div class="left-panel">
+                            <h2 data-i18n="processing_progress">処理状況</h2>
+                            
+                            <!-- AI思考プロセス視覚化エリア -->
+                            <div id="thinking-process-container" class="thinking-process-container">
+                                <h4 class="thinking-process-title">
+                                    <i class="fas fa-brain thinking-process-icon"></i>
+                                    <span data-i18n="thinking_process">思考プロセス</span>
+                                </h4>
+                                <div id="thinking-process-steps" class="thinking-process-steps">
+                                    <!-- 思考ステップはJavaScriptで動的に生成 -->
+                                </div>
+                            </div>
+                            
+                            <!-- ツール使用状況表示エリア -->
+                            <div id="tool-usage-container" class="tool-usage-container">
+                                <h4 class="thinking-process-title">
+                                    <i class="fas fa-tools thinking-process-icon"></i>
+                                    <span data-i18n="tool_usage">ツール使用状況</span>
+                                </h4>
+                                <div id="tool-usage-content">
+                                    <!-- ツール使用状況はJavaScriptで動的に生成 -->
+                                </div>
+                            </div>
+                            
+                            <!-- 思考タイムライン -->
+                            <div class="thinking-section">
+                                <div class="section-header">
+                                    <h3 data-i18n="ai_thinking_process">AI思考プロセス</h3>
+                                    <div class="record-count" id="record-count" data-i18n="records_count">0 件</div>
+                                </div>
+                                
+                                <div class="controls">
+                                    <label class="auto-scroll">
+                                        <input type="checkbox" id="auto-scroll" checked>
+                                        <span data-i18n="auto_scroll">自動スクロール</span>
+                                    </label>
+                                    <button id="clear-thinking" class="btn-clear" data-i18n="clear">クリア</button>
+                                </div>
+                                
+                                <div id="thinking-timeline" class="thinking-timeline">
+                                    <!-- 思考ステップタイムラインはJavaScriptで動的に生成 -->
+                                </div>
+                            </div>
+                            
+                            <!-- ワークスペースファイル -->
+                            <div class="workspace-section">
+                                <h3 data-i18n="workspace_files">ワークスペースファイル</h3>
+                                <div class="refresh-info">
+                                    <span id="refresh-countdown" data-i18n="refresh_countdown">5秒後に更新</span>
+                                    <button id="refresh-files" class="btn-refresh">
+                                        <i class="fas fa-sync-alt"></i>
+                                        <span data-i18n="refresh">更新</span>
+                                    </button>
+                                </div>
+                                
+                                <div id="workspace-files" class="workspace-files">
+                                    <!-- ワークスペースファイルはJavaScriptで動的に生成 -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 右パネル - チャット -->
+                        <div class="right-panel">
+                            <h2 data-i18n="conversation">対話</h2>
+                            
+                            <!-- チャットメッセージ -->
+                            <div id="chat-messages" class="chat-messages">
+                                <!-- チャットメッセージはJavaScriptで動的に生成 -->
+                            </div>
+                            
+                            <!-- 入力エリア -->
+                            <div class="input-area">
+                                <textarea id="user-input" placeholder="質問や指示を入力してください..." data-i18n="input_placeholder"></textarea>
+                                <div class="button-group">
+                                    <button id="send-btn" class="btn-send" data-i18n="send">送信</button>
+                                    <button id="stop-btn" class="btn-stop" disabled data-i18n="stop">停止</button>
+                                    <button id="clear-btn" class="btn-clear" data-i18n="clear">クリア</button>
+                                </div>
+                                <div id="status-indicator" class="status-indicator"></div>
+                            </div>
+                            
+                            <!-- ファイルビューワー -->
+                            <div id="file-viewer" class="file-viewer">
+                                <div class="file-viewer-header">
+                                    <h3 id="file-name" data-i18n="file_name">ファイル名</h3>
+                                    <button id="close-file-viewer" class="btn-close" aria-label="Close">&times;</button>
+                                </div>
+                                <pre id="file-content" class="file-content"></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- フッター -->
+        <footer>
+            <p><span data-i18n="ui_made_by">Web界面制作:</span> <a href="https://space.bilibili.com/267577" target="_blank">云栖AI</a></p>
+            <p><span data-i18n="powered_by">Powered by OpenManus -</span> <a href="https://github.com/mannaandpoem/OpenManus" target="_blank">GitHub</a></p>
+        </footer>
+    </div>
+    
+    <!-- テンプレート -->
+    <template id="tool-execution-template">
+        <div class="tool-execution-indicator">
+            <span class="indicator-icon"><i class="fas fa-cog fa-spin"></i></span>
+            <span class="indicator-text" data-i18n="tool_executing">ツールを実行中...</span>
+        </div>
+    </template>
+    
+    <!-- JavaScript -->
+    <script src="{{ url_for('static', path='/js/thinking_process_visualizer.js') }}"></script>
+    <script src="{{ url_for('static', path='/js/tool_usage_visualizer.js') }}"></script>
+    <script src="{{ url_for('static', path='/js/model_visualization_controller.js') }}"></script>
+    <script src="{{ url_for('static', path='/i18n.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='/connected_interface.js') }}"></script>
+</body>
+</html>
