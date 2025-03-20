@@ -1,5 +1,6 @@
 """
 ブラウザツールのクロスプラットフォーム対応版
+Windows環境では常にSeleniumを使用するように修正
 """
 import asyncio
 import json
@@ -21,95 +22,87 @@ logger = logging.getLogger(__name__)
 # Windows環境をチェック（最優先）
 _is_windows = platform.system() == "Windows"
 
-# Playwrightの使用を完全に無効化（モンキーパッチング）
-# これはバックグラウンドでPlaywrightが呼び出されるのを防ぐための措置
-if _is_windows:
-    # PlaywrightのAPIを無効化する強力なモンキーパッチ
-    sys.modules['playwright'] = None
-    sys.modules['playwright.async_api'] = None
-    
-    # 既にインポートされている場合に備えて
-    if 'playwright' in sys.modules:
-        del sys.modules['playwright']
-    if 'playwright.async_api' in sys.modules:
-        del sys.modules['playwright.async_api']
-    
-    # asyncio.create_subprocess_execを無効化（Playwrightが内部で使用する）
-    if hasattr(asyncio, 'create_subprocess_exec'):
-        # バックアップ
-        original_create_subprocess_exec = asyncio.create_subprocess_exec
-        
-        # エラーを投げる代替関数
-        async def disabled_create_subprocess_exec(*args, **kwargs):
-            logger.warning("Windows環境でcreate_subprocess_execが呼び出されました。無効化されています。")
-            raise NotImplementedError("Windows環境ではこの機能は無効化されています")
-        
-        # モンキーパッチ
-        asyncio.create_subprocess_exec = disabled_create_subprocess_exec
-
-# Windows対応のため、直接importではなく動的ロードを使用
+# グローバル変数定義（早期に定義してモジュールスコープで利用可能にする）
 _browser_use_available = False
 _browser_module = None
 _BrowserUseBrowser = None
 _BrowserConfig = None
-
-# Microsoft StoreのPythonを検出（NotImplementedError対策）
+_playwright_available = False
 _is_ms_store_python = False
+_use_selenium = False
 
-# Windows環境ではPlaywrightを完全に無効化し、Seleniumを常に使用
+# Windows環境特有の処理
 if _is_windows:
     logger.warning("Windows環境が検出されました。Seleniumをブラウザバックエンドとして使用します。")
-    _is_ms_store_python = True  # 強制的にPlaywrightを無効化
-
-# Selenium WebDriverを使用するフラグ（フォールバック用）
-_use_selenium = False
+    
+    # Playwrightの使用を完全に無効化するための処理
+    try:
+        # モジュールを無効化して、インポートできないようにする
+        sys.modules['playwright'] = None
+        sys.modules['playwright.async_api'] = None
+        
+        # 既にインポートされている場合に備えて除去
+        if 'playwright' in sys.modules:
+            del sys.modules['playwright']
+        if 'playwright.async_api' in sys.modules:
+            del sys.modules['playwright.async_api']
+        
+        # Windowsでも動作する代替関数を定義
+        original_create_subprocess_exec = None
+        if hasattr(asyncio, 'create_subprocess_exec'):
+            # オリジナルの関数をバックアップ
+            original_create_subprocess_exec = asyncio.create_subprocess_exec
+            
+            # エラーを投げる代替関数
+            async def disabled_create_subprocess_exec(*args, **kwargs):
+                """Windows環境でのcreate_subprocess_execの代替実装"""
+                logger.warning("Windows環境でcreate_subprocess_execが呼び出されました。無効化されています。")
+                raise NotImplementedError("Windows環境ではこの機能は無効化されています")
+            
+            # モンキーパッチ適用
+            asyncio.create_subprocess_exec = disabled_create_subprocess_exec
+        
+        logger.info("Playwrightと関連モジュールが無効化されました")
+    except Exception as e:
+        logger.error(f"Playwright無効化中にエラーが発生しました: {e}")
+    
+    # Windows環境ではSeleniumを強制的に使用
+    _is_ms_store_python = True  # Microsoft Store Pythonとして扱う
+    _browser_module = "selenium"  # 強制的にSeleniumを使用
+    _use_selenium = True  # Selenium使用フラグをオン
 
 # モジュール存在チェック関数
 def is_module_available(module_name):
     """指定されたモジュールが使用可能かチェックする"""
     return importlib.util.find_spec(module_name) is not None
 
-# Windows環境でのPlaywright無効化
-if _is_windows:
-    # Playwrightモジュールを無効化（インポートを試みない）
-    logger.warning("Windows環境のため、Playwrightの自動検出を無効化します。")
-    _playwright_available = False
-else:
-    # その他の環境ではPlaywrightの存在をチェック
-    _playwright_available = is_module_available("playwright")
+# Windows以外の環境ではブラウザバックエンドの自動検出を実行
+if not _is_windows:
+    # まずbrowser_useを試す
+    if is_module_available("browser_use"):
+        try:
+            from browser_use import Browser as BrowserUseBrowser
+            from browser_use import BrowserConfig
+            _browser_use_available = True
+            _browser_module = "browser_use"
+            _BrowserUseBrowser = BrowserUseBrowser
+            _BrowserConfig = BrowserConfig
+            logger.info("browser_use モジュールを正常にロードしました")
+        except (ImportError, NotImplementedError) as e:
+            logger.warning(f"browser_use モジュールのロードに失敗しました: {str(e)}")
+    
+    # browser_useが利用できない場合はPlaywrightを試す
+    if not _browser_use_available and is_module_available("playwright"):
+        try:
+            _playwright_available = True
+            _browser_module = "playwright"
+            logger.info("Playwright モジュールを代替としてロードしました")
+        except (ImportError, NotImplementedError) as e:
+            logger.warning(f"Playwrightモジュールのロードにも失敗しました: {str(e)}")
+            _playwright_available = False
 
-# ブラウザツールの初期化
-if not _is_windows and not _is_ms_store_python and is_module_available("browser_use"):
-    try:
-        from browser_use import Browser as BrowserUseBrowser
-        from browser_use import BrowserConfig
-        from browser_use.browser.context import BrowserContext
-        from browser_use.dom.service import DomService
-        _browser_use_available = True
-        _browser_module = "browser_use"
-        _BrowserUseBrowser = BrowserUseBrowser
-        _BrowserConfig = BrowserConfig
-        logger.info("browser_use モジュールを正常にロードしました")
-    except (ImportError, NotImplementedError) as e:
-        logger.warning(f"browser_use モジュールのロードに失敗しました: {str(e)}")
-        
-# Windows以外の環境でのみPlaywrightをチェック
-if not _is_windows and not _browser_use_available and _playwright_available:
-    try:
-        # 代替として手動でPlaywrightを使用
-        from playwright.async_api import async_playwright
-        _browser_use_available = True
-        _browser_module = "playwright"
-        logger.info("Playwright モジュールを代替としてロードしました")
-    except (ImportError, NotImplementedError) as e:
-        logger.warning(f"Playwrightモジュールのロードにも失敗しました: {str(e)}")
-        _is_ms_store_python = True  # フォールバックとしてSeleniumを使用する
-else:
-    if _is_windows:
-        logger.warning("Windows環境のため、Playwrightの使用をスキップします")
-
-# Windows環境または他のバックエンドが使用できない場合、Seleniumを試行
-if _is_windows or _is_ms_store_python or not _browser_use_available:
+# 最終手段としてSeleniumを試行（Windows環境または他のバックエンドが使用できない場合）
+if _is_windows or not _browser_use_available or not _playwright_available:
     try:
         from selenium import webdriver
         from selenium.webdriver.chrome.service import Service as ChromeService
@@ -124,11 +117,13 @@ if _is_windows or _is_ms_store_python or not _browser_use_available:
         logger.info("Selenium WebDriverをブラウザバックエンドとして使用します")
     except ImportError as e:
         logger.error(f"すべてのブラウザ自動化ライブラリのロードに失敗しました: {str(e)}")
+        _browser_use_available = False
 
 # Windows環境では常にSeleniumを強制
 if _is_windows and _browser_module != "selenium":
     logger.warning("Windows環境でSelenium以外のバックエンドが指定されています。強制的にSeleniumを使用します。")
     _browser_module = "selenium"
+    _use_selenium = True
 
 _BROWSER_DESCRIPTION = """
 Interact with a web browser to perform various actions such as navigation, element interaction,
@@ -223,60 +218,102 @@ class BrowserUseTool(BaseTool):
 
     async def _ensure_browser_initialized(self) -> Any:
         """ブラウザーとコンテキストが初期化されていることを確認"""
-        global _browser_module, _is_windows
+        global _browser_module, _is_windows, _use_selenium
         
-        # Windows環境チェックを再度実行（確実にするため）
-        if platform.system() == "Windows" and _browser_module != "selenium":
-            logger.warning("Windows環境ですが、Selenium以外が選択されています。強制的にSeleniumを使用します。")
+        # Windows環境では常にSeleniumを使用
+        if _is_windows:
             _browser_module = "selenium"
-            _is_windows = True
+            _use_selenium = True
             
         if not _browser_use_available:
             raise RuntimeError("ブラウザツールの初期化に失敗しました: 必要なモジュールがインストールされていません")
 
-        if _browser_module == "browser_use" and not _is_windows:
-            # browser_useモジュールが使える場合はそちらを使用
-            if self.browser is None:
-                self.browser = _BrowserUseBrowser(_BrowserConfig(headless=False))
-            if self.context is None:
-                self.context = await self.browser.new_context()
-                self.page = await self.context.get_current_page()
-            return self.context
-        
-        elif _browser_module == "playwright" and not _is_windows:
-            # Playwrightを直接使用（Windows以外の環境のみ）
-            try:
-                if self.playwright is None:
-                    self.playwright = await async_playwright().start()
-                    self.browser = await self.playwright.chromium.launch(headless=False)
+        try:
+            if _browser_module == "browser_use" and not _is_windows:
+                # browser_useモジュールが使える場合はそちらを使用
+                if self.browser is None:
+                    # プラグインのConfigが正しくインポートされているか確認
+                    if _BrowserUseBrowser is None or _BrowserConfig is None:
+                        logger.error("browser_useモジュールが正しくインポートされていません")
+                        raise ImportError("browser_useモジュールが正しくインポートされていません")
+                    
+                    self.browser = _BrowserUseBrowser(_BrowserConfig(headless=False))
+                if self.context is None:
                     self.context = await self.browser.new_context()
-                    self.page = await self.context.new_page()
-                return self.page
-            except Exception as e:
-                logger.error(f"Playwrightの初期化に失敗しました。Seleniumへフォールバックします: {e}")
-                _browser_module = "selenium"
-                # ここで再帰的に呼び出す代わりに、次のブロックにフォールスルーする
-        
-        # _browser_moduleが"selenium"または上記の初期化が失敗した場合
-        # Seleniumを使用（または強制的にWindowsの場合）
-        if self.selenium_driver is None:
-            # Chromeオプションの設定
-            chrome_options = Options()
-            chrome_options.add_argument("--no-sandbox")
-            chrome_options.add_argument("--disable-dev-shm-usage")
-            chrome_options.add_argument("--disable-gpu")
-            # ヘッドレスモードの設定
-            # chrome_options.add_argument("--headless") # ヘッドレスは無効化
+                    self.page = await self.context.get_current_page()
+                return self.context
             
-            try:
-                # WebDriverを初期化
-                self.selenium_driver = webdriver.Chrome(options=chrome_options)
-                logger.info("Selenium WebDriverを初期化しました")
-            except WebDriverException as e:
-                logger.error(f"Selenium WebDriverの初期化に失敗しました: {str(e)}")
-                raise RuntimeError(f"Seleniumの初期化に失敗: {str(e)}")
-        
-        return self.selenium_driver
+            elif _browser_module == "playwright" and not _is_windows:
+                # Playwrightを直接使用（Windows以外の環境のみ）
+                try:
+                    if self.playwright is None:
+                        # 必要なモジュールを遅延インポート（エラー処理のため）
+                        try:
+                            from playwright.async_api import async_playwright
+                            self.playwright = await async_playwright().start()
+                            self.browser = await self.playwright.chromium.launch(headless=False)
+                            self.context = await self.browser.new_context()
+                            self.page = await self.context.new_page()
+                        except ImportError as e:
+                            logger.error(f"Playwrightのインポートに失敗しました: {e}")
+                            raise
+                        except Exception as e:
+                            logger.error(f"Playwrightの初期化に失敗しました: {e}")
+                            raise
+                    return self.page
+                except Exception as e:
+                    logger.error(f"Playwrightの初期化に失敗しました。Seleniumへフォールバックします: {e}")
+                    _browser_module = "selenium"
+                    _use_selenium = True
+                    # ここで再帰的に呼び出す代わりに、次のブロックにフォールスルーする
+            
+            # Seleniumを使用（標準バックエンドまたはフォールバック）
+            if _browser_module == "selenium" or _use_selenium:
+                # Selenium WebDriverが初期化されていなければ初期化
+                if self.selenium_driver is None:
+                    # Seleniumが正しくインポートされているか確認
+                    if 'webdriver' not in globals():
+                        try:
+                            from selenium import webdriver
+                            from selenium.webdriver.chrome.service import Service as ChromeService
+                            from selenium.webdriver.common.by import By
+                            from selenium.webdriver.chrome.options import Options
+                            from selenium.common.exceptions import WebDriverException
+                        except ImportError as e:
+                            logger.error(f"Seleniumモジュールのインポートに失敗しました: {e}")
+                            raise RuntimeError(f"Seleniumモジュールのインポートに失敗: {e}")
+                    
+                    # Chromeオプションの設定
+                    chrome_options = Options()
+                    chrome_options.add_argument("--no-sandbox")
+                    chrome_options.add_argument("--disable-dev-shm-usage")
+                    chrome_options.add_argument("--disable-gpu")
+                    # ヘッドレスモードの設定（必要に応じてコメント解除）
+                    # chrome_options.add_argument("--headless")
+                    
+                    try:
+                        # WebDriverを初期化
+                        self.selenium_driver = webdriver.Chrome(options=chrome_options)
+                        logger.info("Selenium WebDriverを初期化しました")
+                    except Exception as e:
+                        # 詳細なエラーログ
+                        logger.error(f"Selenium WebDriverの初期化に失敗しました: {str(e)}")
+                        # 可能ならWebDriverのバージョン情報を取得
+                        try:
+                            logger.info(f"Selenium Version: {webdriver.__version__}")
+                        except:
+                            pass
+                        
+                        raise RuntimeError(f"Seleniumの初期化に失敗: {str(e)}")
+                
+                return self.selenium_driver
+            
+            # すべてのバックエンドが失敗した場合
+            raise RuntimeError("有効なブラウザバックエンドが見つかりませんでした")
+            
+        except Exception as e:
+            logger.error(f"ブラウザの初期化中にエラーが発生しました: {e}")
+            raise
 
     async def execute(
         self,
@@ -292,22 +329,26 @@ class BrowserUseTool(BaseTool):
         """
         ブラウザアクションを実行
         """
-        global _browser_module, _is_windows  # globalキーワードを使用位置の前に移動
+        global _browser_module, _is_windows, _use_selenium
         
         # Windows環境では常にSeleniumを使う
         if _is_windows:
             _browser_module = "selenium"
+            _use_selenium = True
         
         if not _browser_use_available:
             return ToolResult(error="ブラウザツールが利用できません: 必要なライブラリがインストールされていません")
 
-        # Windows環境ではSeleniumを強制
-        if _is_windows and _browser_module != "selenium":
-            logger.warning("Windows環境でSelenium以外のバックエンドが指定されています。強制的にSeleniumを使用します。")
-            _browser_module = "selenium"
-
         async with self.lock:
             try:
+                # ブラウザ実行前のセーフティチェック（メソッド実行時のWindows検出）
+                if platform.system() == "Windows":
+                    logger.info("Windows環境でブラウザアクションを実行します。Seleniumを使用します。")
+                    return await self._execute_with_selenium(
+                        action, url, index, text, script, scroll_amount, tab_id, **kwargs
+                    )
+                
+                # 通常の分岐処理
                 if _browser_module == "browser_use" and not _is_windows:
                     # browser_useモジュールを使用する場合（Windows以外）
                     return await self._execute_with_browser_use(
@@ -323,6 +364,7 @@ class BrowserUseTool(BaseTool):
                         logger.error(f"Playwrightの実行中にエラーが発生しました: {e}")
                         logger.warning(f"Seleniumへフォールバックします")
                         _browser_module = "selenium"
+                        _use_selenium = True
                         return await self._execute_with_selenium(
                             action, url, index, text, script, scroll_amount, tab_id, **kwargs
                         )
@@ -344,66 +386,72 @@ class BrowserUseTool(BaseTool):
             logger.warning("Windows環境でbrowser_useが呼び出されました。Seleniumにリダイレクトします。")
             return await self._execute_with_selenium(action, url, index, text, script, scroll_amount, tab_id, **kwargs)
             
-        context = await self._ensure_browser_initialized()
+        try:
+            context = await self._ensure_browser_initialized()
 
-        if action == "navigate":
-            if not url:
-                return ToolResult(error="URL is required for 'navigate' action")
-            await context.navigate_to(url)
-            return ToolResult(output=f"Navigated to {url}")
+            if action == "navigate":
+                if not url:
+                    return ToolResult(error="URL is required for 'navigate' action")
+                await context.navigate_to(url)
+                return ToolResult(output=f"Navigated to {url}")
 
-        elif action == "click":
-            if index is None:
-                return ToolResult(error="Index is required for 'click' action")
-            element = await context.get_dom_element_by_index(index)
-            if not element:
-                return ToolResult(error=f"Element with index {index} not found")
-            download_path = await context._click_element_node(element)
-            output = f"Clicked element at index {index}"
-            if download_path:
-                output += f" - Downloaded file to {download_path}"
-            return ToolResult(output=output)
+            elif action == "click":
+                if index is None:
+                    return ToolResult(error="Index is required for 'click' action")
+                element = await context.get_dom_element_by_index(index)
+                if not element:
+                    return ToolResult(error=f"Element with index {index} not found")
+                download_path = await context._click_element_node(element)
+                output = f"Clicked element at index {index}"
+                if download_path:
+                    output += f" - Downloaded file to {download_path}"
+                return ToolResult(output=output)
 
-        elif action == "input_text":
-            if index is None or not text:
-                return ToolResult(error="Index and text are required for 'input_text' action")
-            element = await context.get_dom_element_by_index(index)
-            if not element:
-                return ToolResult(error=f"Element with index {index} not found")
-            await context._input_text_element_node(element, text)
-            return ToolResult(output=f"Input '{text}' into element at index {index}")
+            elif action == "input_text":
+                if index is None or not text:
+                    return ToolResult(error="Index and text are required for 'input_text' action")
+                element = await context.get_dom_element_by_index(index)
+                if not element:
+                    return ToolResult(error=f"Element with index {index} not found")
+                await context._input_text_element_node(element, text)
+                return ToolResult(output=f"Input '{text}' into element at index {index}")
 
-        elif action == "get_text":
-            text = await context.execute_javascript("document.body.innerText")
-            return ToolResult(output=text)
-        
-        elif action == "read_links":
-            links = await context.execute_javascript('''
-            const links = Array.from(document.querySelectorAll('a')).map(a => {
-                return {
-                    text: a.textContent.trim(),
-                    href: a.href,
-                    index: [...document.querySelectorAll('*')].indexOf(a)
-                };
-            });
-            return JSON.stringify(links);
-            ''')
-            return ToolResult(output=links)
-        
-        # その他のアクションの実装...
-        elif action == "get_html":
-            html = await context.get_page_html()
-            truncated = html[:2000] + "..." if len(html) > 2000 else html
-            return ToolResult(output=truncated)
+            elif action == "get_text":
+                text = await context.execute_javascript("document.body.innerText")
+                return ToolResult(output=text)
+            
+            elif action == "read_links":
+                links = await context.execute_javascript('''
+                const links = Array.from(document.querySelectorAll('a')).map(a => {
+                    return {
+                        text: a.textContent.trim(),
+                        href: a.href,
+                        index: [...document.querySelectorAll('*')].indexOf(a)
+                    };
+                });
+                return JSON.stringify(links);
+                ''')
+                return ToolResult(output=links)
+            
+            elif action == "get_html":
+                html = await context.get_page_html()
+                truncated = html[:2000] + "..." if len(html) > 2000 else html
+                return ToolResult(output=truncated)
 
-        elif action == "execute_js":
-            if not script:
-                return ToolResult(error="Script is required for 'execute_js' action")
-            result = await context.execute_javascript(script)
-            return ToolResult(output=str(result))
+            elif action == "execute_js":
+                if not script:
+                    return ToolResult(error="Script is required for 'execute_js' action")
+                result = await context.execute_javascript(script)
+                return ToolResult(output=str(result))
 
-        else:
-            return ToolResult(error=f"未実装または不明なアクション: {action}")
+            else:
+                return ToolResult(error=f"未実装または不明なアクション: {action}")
+                
+        except Exception as e:
+            logger.error(f"browser_useでの処理中にエラーが発生しました: {e}")
+            # Seleniumへのフォールバック
+            logger.warning("Seleniumにフォールバックします")
+            return await self._execute_with_selenium(action, url, index, text, script, scroll_amount, tab_id, **kwargs)
 
     async def _execute_with_playwright(
         self, action, url, index, text, script, scroll_amount, tab_id, **kwargs
@@ -415,6 +463,7 @@ class BrowserUseTool(BaseTool):
             return await self._execute_with_selenium(action, url, index, text, script, scroll_amount, tab_id, **kwargs)
             
         try:
+            # Playwrightのページオブジェクトを取得
             page = await self._ensure_browser_initialized()
 
             if action == "navigate":
@@ -426,8 +475,7 @@ class BrowserUseTool(BaseTool):
             elif action == "click":
                 if index is None:
                     return ToolResult(error="Index is required for 'click' action")
-                # Playwrightでは要素のインデックスによるアクセスが直接サポートされていないため
-                # JavaScriptを使用してアクセス
+                # JavaScriptを使用して要素をクリック
                 await page.evaluate(f"document.querySelectorAll('*')[{index}].click()")
                 return ToolResult(output=f"Clicked element at index {index}")
 
@@ -482,98 +530,117 @@ class BrowserUseTool(BaseTool):
 
             else:
                 return ToolResult(error=f"未実装または不明なアクション: {action}")
+                
         except Exception as e:
             logger.error(f"Playwrightでの処理中にエラーが発生しました: {e}")
             # Seleniumへのフォールバック
-            global _browser_module
-            _browser_module = "selenium"
+            logger.warning("Seleniumにフォールバックします")
             return await self._execute_with_selenium(action, url, index, text, script, scroll_amount, tab_id, **kwargs)
 
     async def _execute_with_selenium(
         self, action, url, index, text, script, scroll_amount, tab_id, **kwargs
     ) -> ToolResult:
         """Seleniumを使用したブラウザアクションの実行"""
-        # 非同期関数内で同期的なSelenium操作を行うため
-        # asyncio.to_thread または run_in_executor を使うべきだが、
-        # 簡略化のため直接実行する
+        # 非同期関数内で同期的なSelenium操作を行うため、安全に実行する
         
-        driver = await self._ensure_browser_initialized()
-        
-        # actionに応じた処理を実装
-        if action == "navigate":
-            if not url:
-                return ToolResult(error="URL is required for 'navigate' action")
-            driver.get(url)
-            return ToolResult(output=f"Navigated to {url}")
+        try:
+            # Selenium WebDriverを初期化
+            driver = await self._ensure_browser_initialized()
             
-        elif action == "get_text":
-            text = driver.find_element(By.TAG_NAME, "body").text
-            return ToolResult(output=text)
-            
-        elif action == "get_html":
-            html = driver.page_source
-            truncated = html[:2000] + "..." if len(html) > 2000 else html
-            return ToolResult(output=truncated)
-            
-        elif action == "read_links":
-            # JavaScriptで全リンクを取得
-            links = driver.execute_script('''
-            const links = Array.from(document.querySelectorAll('a')).map(a => {
-                return {
-                    text: a.textContent.trim(),
-                    href: a.href,
-                    index: [...document.querySelectorAll('*')].indexOf(a)
-                };
-            });
-            return JSON.stringify(links);
-            ''')
-            return ToolResult(output=links)
-            
-        elif action == "click":
-            if index is None:
-                return ToolResult(error="Index is required for 'click' action")
-            # JavaScriptでインデックスによる要素アクセスとクリック
-            try:
-                driver.execute_script(f"document.querySelectorAll('*')[{index}].click()")
-                return ToolResult(output=f"Clicked element at index {index}")
-            except Exception as e:
-                return ToolResult(error=f"Click failed: {str(e)}")
+            # actionに応じた処理を実装
+            if action == "navigate":
+                if not url:
+                    return ToolResult(error="URL is required for 'navigate' action")
+                try:
+                    driver.get(url)
+                    return ToolResult(output=f"Navigated to {url}")
+                except Exception as e:
+                    return ToolResult(error=f"Navigation failed: {str(e)}")
                 
-        elif action == "input_text":
-            if index is None or not text:
-                return ToolResult(error="Index and text are required for 'input_text' action")
-            # JavaScriptで値を設定
-            try:
-                result = driver.execute_script(f"""
-                    const el = document.querySelectorAll('*')[{index}];
-                    if (!el) return false;
-                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {{
-                        el.value = '{text}';
-                        return true;
-                    }}
-                    return false;
-                """)
-                if not result:
-                    return ToolResult(error=f"Unable to input text to element at index {index}")
-                return ToolResult(output=f"Input '{text}' into element at index {index}")
-            except Exception as e:
-                return ToolResult(error=f"Input text failed: {str(e)}")
+            elif action == "get_text":
+                try:
+                    text = driver.find_element(By.TAG_NAME, "body").text
+                    return ToolResult(output=text)
+                except Exception as e:
+                    return ToolResult(error=f"Failed to get text: {str(e)}")
                 
-        elif action == "execute_js":
-            if not script:
-                return ToolResult(error="Script is required for 'execute_js' action")
-            try:
-                result = driver.execute_script(script)
-                return ToolResult(output=str(result))
-            except Exception as e:
-                return ToolResult(error=f"JavaScript execution failed: {str(e)}")
+            elif action == "get_html":
+                try:
+                    html = driver.page_source
+                    truncated = html[:2000] + "..." if len(html) > 2000 else html
+                    return ToolResult(output=truncated)
+                except Exception as e:
+                    return ToolResult(error=f"Failed to get HTML: {str(e)}")
                 
-        else:
-            return ToolResult(error=f"未実装または不明なアクション: {action}")
+            elif action == "read_links":
+                try:
+                    # JavaScriptで全リンクを取得
+                    links = driver.execute_script('''
+                    const links = Array.from(document.querySelectorAll('a')).map(a => {
+                        return {
+                            text: a.textContent.trim(),
+                            href: a.href,
+                            index: [...document.querySelectorAll('*')].indexOf(a)
+                        };
+                    });
+                    return JSON.stringify(links);
+                    ''')
+                    return ToolResult(output=links)
+                except Exception as e:
+                    return ToolResult(error=f"Failed to read links: {str(e)}")
+                
+            elif action == "click":
+                if index is None:
+                    return ToolResult(error="Index is required for 'click' action")
+                try:
+                    # JavaScriptでインデックスによる要素アクセスとクリック
+                    driver.execute_script(f"document.querySelectorAll('*')[{index}].click()")
+                    return ToolResult(output=f"Clicked element at index {index}")
+                except Exception as e:
+                    return ToolResult(error=f"Click failed: {str(e)}")
+                    
+            elif action == "input_text":
+                if index is None or not text:
+                    return ToolResult(error="Index and text are required for 'input_text' action")
+                try:
+                    # JavaScriptで値を設定
+                    result = driver.execute_script(f"""
+                        const el = document.querySelectorAll('*')[{index}];
+                        if (!el) return false;
+                        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {{
+                            el.value = '{text}';
+                            return true;
+                        }}
+                        return false;
+                    """)
+                    if not result:
+                        return ToolResult(error=f"Unable to input text to element at index {index}")
+                    return ToolResult(output=f"Input '{text}' into element at index {index}")
+                except Exception as e:
+                    return ToolResult(error=f"Input text failed: {str(e)}")
+                    
+            elif action == "execute_js":
+                if not script:
+                    return ToolResult(error="Script is required for 'execute_js' action")
+                try:
+                    result = driver.execute_script(script)
+                    return ToolResult(output=str(result))
+                except Exception as e:
+                    return ToolResult(error=f"JavaScript execution failed: {str(e)}")
+                    
+            else:
+                return ToolResult(error=f"未実装または不明なアクション: {action}")
+                
+        except Exception as e:
+            logger.error(f"Seleniumでの処理中にエラーが発生しました: {str(e)}")
+            return ToolResult(error=f"ブラウザ操作に失敗しました: {str(e)}")
 
     async def cleanup(self):
         """リソースのクリーンアップ"""
+        global _browser_module
+        
         try:
+            # 各バックエンド別のクリーンアップ処理
             if _browser_module == "browser_use":
                 if hasattr(self, "context") and self.context and not getattr(self.context, "is_closed", lambda: False)():
                     await self.context.close()
@@ -590,6 +657,7 @@ class BrowserUseTool(BaseTool):
                 if hasattr(self, "selenium_driver") and self.selenium_driver:
                     self.selenium_driver.quit()
             
+            # リソース参照をクリア
             self.browser = None
             self.context = None
             self.page = None
@@ -602,21 +670,29 @@ class BrowserUseTool(BaseTool):
         """オブジェクト破棄時のクリーンアップ"""
         if hasattr(self, "browser") and self.browser is not None:
             try:
+                # Seleniumの場合は同期的にクリーンアップ
                 if _browser_module == "selenium" and hasattr(self, "selenium_driver") and self.selenium_driver:
-                    # Seleniumの場合は同期的にクリーンアップ
-                    self.selenium_driver.quit()
+                    # try-exceptで囲んで確実に閉じる
+                    try:
+                        self.selenium_driver.quit()
+                    except Exception as e:
+                        logger.error(f"Seleniumドライバーのクリーンアップに失敗: {e}")
                     return
                 
                 # 非同期クリーンアップ（Playwright/browser_use用）
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    logger.warning("イベントループ実行中のため非同期クリーンアップをスキップします")
-                    return
-                
-                # 新しいイベントループを作成してクリーンアップ
-                new_loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(new_loop)
-                new_loop.run_until_complete(self.cleanup())
-                new_loop.close()
+                # ランタイムエラーを避けるためのチェック
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        logger.warning("イベントループ実行中のため非同期クリーンアップをスキップします")
+                        return
+                    
+                    # 新しいイベントループを作成してクリーンアップ
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    new_loop.run_until_complete(self.cleanup())
+                    new_loop.close()
+                except Exception as e:
+                    logger.error(f"非同期クリーンアップ処理中にエラーが発生: {e}")
             except Exception as e:
                 logger.error(f"ブラウザリソースのクリーンアップに失敗しました: {str(e)}")
