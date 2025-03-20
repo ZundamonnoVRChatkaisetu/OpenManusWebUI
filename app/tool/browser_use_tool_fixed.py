@@ -25,28 +25,42 @@ _BrowserConfig = None
 
 # Microsoft StoreのPythonを検出（NotImplementedError対策）
 _is_ms_store_python = False
-if platform.system() == "Windows" and sys.executable.startswith("C:\\Program Files\\WindowsApps\\"):
-    _is_ms_store_python = True
-    logger.warning("Microsoft Store版Pythonが検出されました。ブラウザツールが制限される可能性があります。")
+if platform.system() == "Windows":
+    if sys.executable.startswith("C:\\Program Files\\WindowsApps\\"):
+        _is_ms_store_python = True
+    # エラーメッセージに表示される「C:\Program Files\WindowsApps\」が含まれる場合も検出
+    try:
+        asyncio.create_subprocess_exec
+    except (NotImplementedError, AttributeError):
+        _is_ms_store_python = True
+    except Exception:
+        pass
+    
+    if _is_ms_store_python:
+        logger.warning("Microsoft Store版Pythonが検出されました。ブラウザツールが制限される可能性があります。")
+
+# WindowsではPlaywrightの使用を完全に無効化
+if platform.system() == "Windows":
+    logger.warning("Windows環境が検出されました。Seleniumをブラウザバックエンドとして使用します。")
+    _is_ms_store_python = True  # 強制的にPlaywrightを無効化
 
 # Selenium WebDriverを使用するフラグ（フォールバック用）
 _use_selenium = False
 
-try:
-    from browser_use import Browser as BrowserUseBrowser
-    from browser_use import BrowserConfig
-    from browser_use.browser.context import BrowserContext
-    from browser_use.dom.service import DomService
-    _browser_use_available = True
-    _browser_module = "browser_use"
-    _BrowserUseBrowser = BrowserUseBrowser
-    _BrowserConfig = BrowserConfig
-    logger.info("browser_use モジュールを正常にロードしました")
-except (ImportError, NotImplementedError) as e:
-    logger.warning(f"browser_use モジュールのロードに失敗しました: {str(e)}")
-    
-    # Microsoft Store版Pythonの場合はPlaywrightを試さない
-    if not _is_ms_store_python:
+if not _is_ms_store_python:
+    try:
+        from browser_use import Browser as BrowserUseBrowser
+        from browser_use import BrowserConfig
+        from browser_use.browser.context import BrowserContext
+        from browser_use.dom.service import DomService
+        _browser_use_available = True
+        _browser_module = "browser_use"
+        _BrowserUseBrowser = BrowserUseBrowser
+        _BrowserConfig = BrowserConfig
+        logger.info("browser_use モジュールを正常にロードしました")
+    except (ImportError, NotImplementedError) as e:
+        logger.warning(f"browser_use モジュールのロードに失敗しました: {str(e)}")
+        
         try:
             # 代替として手動でPlaywrightを使用
             from playwright.async_api import async_playwright
@@ -55,23 +69,26 @@ except (ImportError, NotImplementedError) as e:
             logger.info("Playwright モジュールを代替としてロードしました")
         except (ImportError, NotImplementedError) as e:
             logger.warning(f"Playwrightモジュールのロードにも失敗しました: {str(e)}")
-    
-    # 最終手段としてSeleniumを試行
-    if not _browser_use_available or _is_ms_store_python:
-        try:
-            from selenium import webdriver
-            from selenium.webdriver.chrome.service import Service as ChromeService
-            from selenium.webdriver.common.by import By
-            from selenium.webdriver.chrome.options import Options
-            from selenium.common.exceptions import WebDriverException
-            
-            # Seleniumの使用を有効化
-            _browser_use_available = True
-            _browser_module = "selenium"
-            _use_selenium = True
-            logger.info("Selenium WebDriverを最終手段として使用します")
-        except ImportError as e:
-            logger.error(f"全てのブラウザ自動化ライブラリのロードに失敗しました: {str(e)}")
+            _is_ms_store_python = True  # フォールバックとしてSeleniumを使用する
+else:
+    logger.warning("Microsoft Store版Python/Windows環境のため、Playwrightの使用をスキップします")
+
+# 他のバックエンドが使用できない場合、Seleniumを試行
+if _is_ms_store_python or not _browser_use_available:
+    try:
+        from selenium import webdriver
+        from selenium.webdriver.chrome.service import Service as ChromeService
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.chrome.options import Options
+        from selenium.common.exceptions import WebDriverException
+        
+        # Seleniumの使用を有効化
+        _browser_use_available = True
+        _browser_module = "selenium"
+        _use_selenium = True
+        logger.info("Selenium WebDriverをブラウザバックエンドとして使用します")
+    except ImportError as e:
+        logger.error(f"すべてのブラウザ自動化ライブラリのロードに失敗しました: {str(e)}")
 
 
 _BROWSER_DESCRIPTION = """
