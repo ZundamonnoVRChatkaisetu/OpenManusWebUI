@@ -16,7 +16,7 @@ class App {
         this.isProcessing = false;
         this.currentProjectId = null;
         this.chatHistory = []; // チャット履歴の保持
-        this.messageQueue = []; // 追加: 処理待ちメッセージのキュー
+        this.messageQueue = []; // 処理待ちメッセージのキュー
 
         // 初始化各个管理器
         this.websocketManager = new WebSocketManager(this.handleWebSocketMessage.bind(this));
@@ -279,8 +279,9 @@ class App {
             // ユーザーメッセージをUIに追加
             this.chatManager.addUserMessage(message);
             
-            // 処理中の通知
-            this.chatManager.addSystemMessage(t('instruction_queued'));
+            // 処理中の通知（翻訳関数を使用）
+            const queuedMessage = t('instruction_queued');
+            this.chatManager.addSystemMessage(queuedMessage);
             
             // 入力フィールドをクリア
             document.getElementById('user-input').value = '';
@@ -458,7 +459,9 @@ class App {
             
             // 処理が停止されたら、キューのメッセージもクリア
             if (this.messageQueue.length > 0) {
-                this.chatManager.addSystemMessage(t('queued_messages_cleared', { count: this.messageQueue.length }));
+                const count = this.messageQueue.length;
+                const clearMessage = t('queued_messages_cleared', { count });
+                this.chatManager.addSystemMessage(clearMessage);
                 this.messageQueue = [];
             }
 
