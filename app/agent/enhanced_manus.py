@@ -101,7 +101,7 @@ class EnhancedManus(Manus):
         # 思考ステップを記録
         self.thought_steps.append(f"ツール '{command.function.name}' を実行します...")
         
-        # 標準のツール実行処理
+        # 標準のツール実行処理を呼び出し
         result = await super().execute_tool(command)
         
         # ツール結果に基づいて追加処理を実行
@@ -194,7 +194,7 @@ class EnhancedManus(Manus):
                 spec_filename = f"{app_name.lower().replace(' ', '_')}_spec.md"
                 prototype_filename = f"{app_name.lower().replace(' ', '_')}_prototype.html"
                 
-                # FileSaverを使用してファイルを保存
+                # FileSaverを使用してファイルを保存（言語パラメータを削除）
                 await self.available_tools.execute(
                     name="file_saver",
                     tool_input={"content": spec_content, "file_path": spec_filename}
