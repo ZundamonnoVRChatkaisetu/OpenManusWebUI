@@ -1,0 +1,766 @@
+/**
+ * visualizers.css
+ * 思考プロセスとツール使用状況の視覚化コンポーネント用スタイル
+ * ManusのUI/UXデザインに合わせたスタイル
+ */
+
+/* ===== 共通スタイル ===== */
+:root {
+    --primary-color: #4C6FFF;       /* Manusプライマリカラー */
+    --secondary-color: #166088;
+    --accent-color: #00D1FF;        /* Manusアクセントカラー */
+    --success-color: #00C48C;       /* 成功色 */
+    --error-color: #FF3B5C;         /* エラー色 */
+    --warning-color: #FFAB2E;       /* 警告色 */
+    --info-color: #0184FF;          /* 情報色 */
+    --background-color: #F8F9FB;    /* 背景色 */
+    --panel-bg: #FFFFFF;
+    --text-color: #1E293B;          /* 基本テキスト色 */
+    --text-secondary: #64748B;      /* 二次テキスト色 */
+    --border-color: #E2E8F0;
+    --timeline-color: var(--primary-color);
+    --timeline-completed: var(--success-color);
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --transition-speed: 0.3s;
+    --border-radius: 8px;
+    --font-mono: 'Roboto Mono', 'SF Mono', 'Menlo', monospace;
+}
+
+/* アニメーション定義 */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideInRight {
+    from { 
+        transform: translateX(-20px);
+        opacity: 0;
+    }
+    to { 
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInUp {
+    from { 
+        transform: translateY(10px);
+        opacity: 0;
+    }
+    to { 
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(76, 111, 255, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(76, 111, 255, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(76, 111, 255, 0);
+    }
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes successPulse {
+    0% { 
+        background-color: var(--success-color);
+        box-shadow: 0 0 0 0 rgba(0, 196, 140, 0.4);
+    }
+    70% { 
+        background-color: var(--success-color);
+        box-shadow: 0 0 0 10px rgba(0, 196, 140, 0);
+    }
+    100% { 
+        background-color: var(--success-color);
+        box-shadow: 0 0 0 0 rgba(0, 196, 140, 0);
+    }
+}
+
+@keyframes errorPulse {
+    0% { 
+        background-color: var(--error-color);
+        box-shadow: 0 0 0 0 rgba(255, 59, 92, 0.4);
+    }
+    70% { 
+        background-color: var(--error-color);
+        box-shadow: 0 0 0 10px rgba(255, 59, 92, 0);
+    }
+    100% { 
+        background-color: var(--error-color);
+        box-shadow: 0 0 0 0 rgba(255, 59, 92, 0);
+    }
+}
+
+/* ===== 思考プロセスビジュアライザーのスタイル ===== */
+.thinking-process-container {
+    background-color: var(--panel-bg);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.thinking-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.thinking-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-color);
+    margin: 0;
+}
+
+.controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.auto-scroll {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.auto-scroll input {
+    cursor: pointer;
+}
+
+.btn-clear {
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 4px 8px;
+    font-size: 0.85rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+}
+
+.btn-clear:hover {
+    background-color: #f1f5f9;
+    color: var(--text-color);
+}
+
+.thinking-timeline {
+    display: flex;
+    flex-direction: column;
+    border-left: 2px solid var(--timeline-color);
+    margin-left: 8px;
+    padding-left: 0;
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 12px;
+    margin-top: 8px;
+}
+
+.timeline-item {
+    position: relative;
+    padding: 8px 0 8px 20px;
+    margin-bottom: 8px;
+    transition: all var(--transition-speed);
+    opacity: 0;
+    animation: fadeIn var(--transition-speed) forwards;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -6px;
+    top: 12px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--timeline-color);
+    transition: background-color var(--transition-speed);
+}
+
+.timeline-item.completed .timeline-marker {
+    background-color: var(--timeline-completed);
+}
+
+.timeline-item-error .timeline-marker {
+    background-color: var(--error-color);
+}
+
+.timeline-item-warning .timeline-marker {
+    background-color: var(--warning-color);
+}
+
+.timeline-content {
+    background-color: #f8fafc;
+    padding: 10px 12px;
+    border-radius: var(--border-radius);
+    border-left: 3px solid var(--timeline-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.timeline-item-error .timeline-content {
+    border-left-color: var(--error-color);
+}
+
+.timeline-item-warning .timeline-content {
+    border-left-color: var(--warning-color);
+}
+
+.timeline-item.completed .timeline-content {
+    border-left-color: var(--timeline-completed);
+}
+
+.timeline-item.tool-usage .timeline-content {
+    border-left-color: var(--accent-color);
+}
+
+.timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 6px;
+}
+
+.timeline-time {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    margin-right: 8px;
+}
+
+.timeline-message {
+    flex: 1;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--text-color);
+}
+
+.btn-details {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    font-size: 0.8rem;
+    padding: 4px 0;
+    cursor: pointer;
+    margin-top: 4px;
+    display: block;
+    text-align: left;
+}
+
+.btn-details:hover {
+    text-decoration: underline;
+}
+
+.timeline-details {
+    background-color: #f1f5f9;
+    padding: 8px 10px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 8px;
+    display: none;
+    font-family: var(--font-mono);
+    white-space: pre-wrap;
+    overflow-x: auto;
+}
+
+/* ===== ツール使用状況ビジュアライザーのスタイル ===== */
+.tool-usage-visualizer {
+    background-color: var(--panel-bg);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.tool-usage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tool-usage-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-color);
+    margin: 0;
+}
+
+.tool-usage-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.tool-current-container, .tool-history-container {
+    width: 100%;
+}
+
+.tool-current-container h4, .tool-history-container h4 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 0 0 8px 0;
+}
+
+.tool-current-operation {
+    min-height: 100px;
+    transition: all var(--transition-speed);
+}
+
+.tool-operation {
+    background-color: #f8fafc;
+    padding: 12px 16px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 12px;
+    animation: slideInUp var(--transition-speed) forwards;
+}
+
+.tool-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.tool-icon {
+    font-size: 1.4rem;
+    margin-right: 8px;
+}
+
+.tool-title {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-color);
+    margin: 0;
+}
+
+.tool-body {
+    font-size: 0.9rem;
+}
+
+.tool-history-list {
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+.tool-history-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 10px;
+    border-bottom: 1px solid var(--border-color);
+    transition: all var(--transition-speed);
+    animation: slideInRight var(--transition-speed) forwards;
+}
+
+.tool-history-item:last-child {
+    border-bottom: none;
+}
+
+.tool-history-time {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    min-width: 70px;
+    margin-right: 10px;
+}
+
+.tool-history-info {
+    flex: 1;
+}
+
+.tool-history-type {
+    display: flex;
+    align-items: center;
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.tool-history-type .tool-icon {
+    font-size: 1.1rem;
+    margin-right: 6px;
+}
+
+.tool-history-detail {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.tool-history-empty {
+    color: var(--text-secondary);
+    font-style: italic;
+    text-align: center;
+    padding: 20px 0;
+}
+
+/* ターミナル操作のスタイル */
+.terminal-container {
+    font-family: var(--font-mono);
+    background-color: #1E293B;
+    color: #f8fafc;
+    padding: 12px;
+    border-radius: 6px;
+}
+
+.terminal-header {
+    display: flex;
+    margin-bottom: 8px;
+    color: #A0AEC0;
+}
+
+.terminal-prompt {
+    color: #00C48C;
+    margin-right: 8px;
+}
+
+.terminal-command {
+    color: #fff;
+    margin-bottom: 8px;
+    word-break: break-all;
+}
+
+.terminal-status {
+    display: flex;
+    align-items: center;
+    font-size: 0.85rem;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.status-running .status-indicator {
+    background-color: var(--primary-color);
+}
+
+.status-success .status-indicator {
+    background-color: var(--success-color);
+}
+
+.status-error .status-indicator {
+    background-color: var(--error-color);
+}
+
+.status-pending .status-indicator {
+    background-color: var(--warning-color);
+}
+
+/* ブリンキングアニメーション */
+.blinking {
+    animation: blink 1s infinite;
+}
+
+/* スピニングアニメーション */
+.spinning {
+    animation: spin 1.5s linear infinite;
+}
+
+/* 成功パルスアニメーション */
+.success-pulse {
+    animation: successPulse 2s;
+}
+
+/* エラーパルスアニメーション */
+.error-pulse {
+    animation: errorPulse 2s;
+}
+
+/* ブラウザ操作のスタイル */
+.browser-container {
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.browser-header {
+    background-color: #f1f5f9;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    border-bottom: 1px solid #E2E8F0;
+}
+
+.browser-address-bar {
+    background-color: #fff;
+    padding: 8px 12px;
+    border-bottom: 1px solid #E2E8F0;
+    font-size: 0.85rem;
+    font-family: var(--font-mono);
+    word-break: break-all;
+}
+
+.browser-title {
+    padding: 12px;
+    font-weight: 500;
+}
+
+.browser-address-bar.loading {
+    position: relative;
+}
+
+.browser-address-bar.loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 2px;
+    width: 0;
+    background-color: var(--primary-color);
+    animation: progressBar 1.5s forwards;
+}
+
+@keyframes progressBar {
+    from { width: 0; }
+    to { width: 100%; }
+}
+
+/* ファイル操作のスタイル */
+.file-container {
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.file-header {
+    background-color: #f1f5f9;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    border-bottom: 1px solid #E2E8F0;
+    display: flex;
+    justify-content: space-between;
+}
+
+.file-name {
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.file-content {
+    padding: 12px;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    background-color: #fff;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.file-content pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.file-read {
+    animation: fadeInBlue 0.5s;
+}
+
+.file-write, .file-create, .file-update {
+    animation: fadeInGreen 0.5s;
+}
+
+.file-delete {
+    animation: fadeInRed 0.5s;
+}
+
+@keyframes fadeInBlue {
+    from { background-color: rgba(76, 111, 255, 0.1); }
+    to { background-color: transparent; }
+}
+
+@keyframes fadeInGreen {
+    from { background-color: rgba(0, 196, 140, 0.1); }
+    to { background-color: transparent; }
+}
+
+@keyframes fadeInRed {
+    from { background-color: rgba(255, 59, 92, 0.1); }
+    to { background-color: transparent; }
+}
+
+/* API操作のスタイル */
+.api-container {
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.api-header {
+    background-color: #f1f5f9;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    border-bottom: 1px solid #E2E8F0;
+    display: flex;
+    align-items: center;
+}
+
+.api-method {
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-right: 10px;
+}
+
+.api-endpoint {
+    font-family: var(--font-mono);
+    word-break: break-all;
+}
+
+.api-status {
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    font-size: 0.85rem;
+    border-bottom: 1px solid #E2E8F0;
+}
+
+.api-response {
+    padding: 12px;
+    font-size: 0.85rem;
+}
+
+.response-header {
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.api-response pre {
+    background-color: #f8fafc;
+    padding: 8px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+/* データベース操作のスタイル */
+.database-container {
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.database-header {
+    background-color: #f1f5f9;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    border-bottom: 1px solid #E2E8F0;
+    display: flex;
+    justify-content: space-between;
+}
+
+.database-name {
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.database-query {
+    padding: 12px;
+    background-color: #fff;
+}
+
+.database-query pre {
+    margin: 0;
+    padding: 8px;
+    background-color: #f8fafc;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* デフォルトツール操作のスタイル */
+.default-tool-container {
+    padding: 12px;
+}
+
+.tool-description {
+    margin-bottom: 8px;
+}
+
+.tool-details {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* ファイル操作結果のスタイル */
+.file-operation-result {
+    padding: 12px;
+    border-top: 1px solid #E2E8F0;
+}
+
+.result-header {
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: var(--text-color);
+}
+
+.result-details {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* レスポンシブ対応 */
+@media (min-width: 768px) {
+    .tool-usage-content {
+        flex-direction: row;
+    }
+    
+    .tool-current-container {
+        width: 60%;
+        margin-right: 20px;
+    }
+    
+    .tool-history-container {
+        width: 40%;
+    }
+}
+
+@media (max-width: 768px) {
+    .thinking-timeline {
+        max-height: 200px;
+    }
+    
+    .tool-history-list {
+        max-height: 200px;
+    }
+}
