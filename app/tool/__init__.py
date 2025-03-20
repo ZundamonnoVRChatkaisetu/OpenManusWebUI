@@ -8,8 +8,7 @@ from app.tool.tool_collection import ToolCollection
 from app.tool.file_saver import FileSaver
 from app.tool.google_search import GoogleSearch
 from app.tool.python_execute import PythonExecute
-
-# browser_use_toolの読み込みを無効化
+from app.tool.browser_use_tool_fixed import BrowserUseTool  # 修正版のブラウザツールを使用
 
 __all__ = [
     "BaseTool",
@@ -22,4 +21,5 @@ __all__ = [
     "FileSaver",
     "GoogleSearch",
     "PythonExecute",
+    "BrowserUseTool",  # 修正版のブラウザツールを追加
 ]
