@@ -113,17 +113,17 @@ class EnhancedManus(Manus):
             try:
                 args = command.function.arguments or "{}"
                 args_dict = eval(args) if isinstance(args, str) else args
-                filename = args_dict.get("filename", "")
+                file_path = args_dict.get("file_path", "")
                 content = args_dict.get("content", "")[:200]  # プレビュー用に先頭200文字
                 
                 self.generated_files.append({
-                    "filename": filename,
+                    "filename": file_path,
                     "content_preview": content
                 })
                 
                 # 整形された結果を返す
                 formatted_result = format_file_generation_result(
-                    filename=filename,
+                    filename=file_path,
                     content_preview=f"{content}...",
                     language=self.language
                 )
@@ -137,7 +137,7 @@ class EnhancedManus(Manus):
             try:
                 # 結果からアプリ名と説明を抽出する試み
                 import re
-                app_name_match = re.search(r'app(?:\s+name)?[:\s]+(["\']?)([^"\':\n]+)\1', result, re.IGNORECASE)
+                app_name_match = re.search(r'app(?:\s+name)?[:\s]+(["\'']?)([^"\':\n]+)\1', result, re.IGNORECASE)
                 app_name = app_name_match.group(2) if app_name_match else "SampleApp"
                 
                 # 機能リストを抽出する試み
@@ -169,7 +169,7 @@ class EnhancedManus(Manus):
                     ]
                 
                 # アプリ説明を抽出する試み
-                description_match = re.search(r'description:?\s*(["\']?)([^"\']+)\1', result, re.IGNORECASE)
+                description_match = re.search(r'description:?\s*(["\'']?)([^"\']+)\1', result, re.IGNORECASE)
                 app_description = description_match.group(2) if description_match else "革新的なアプリケーション"
                 
                 # アプリ設計書を生成
@@ -198,11 +198,11 @@ class EnhancedManus(Manus):
                 # FileSaverを使用してファイルを保存
                 await self.available_tools.execute(
                     name="file_saver",
-                    tool_input=SaveFileParams(filename=spec_filename, content=spec_content)
+                    tool_input={"content": spec_content, "file_path": spec_filename}
                 )
                 await self.available_tools.execute(
                     name="file_saver",
-                    tool_input=SaveFileParams(filename=prototype_filename, content=prototype_content)
+                    tool_input={"content": prototype_content, "file_path": prototype_filename}
                 )
                 
                 # 生成ファイルを記録
