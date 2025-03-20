@@ -18,6 +18,7 @@
             --button-primary: #4a6fa5;
             --button-secondary: #e0e0e0;
             --button-danger: #e74c3c;
+            --waiting-input-color: #3498db; /* 追加: 入力待ち状態の色 */
         }
 
         * {
@@ -340,6 +341,23 @@
             color: #666;
         }
 
+        /* 追加: メッセージヘッダーのスタイル */
+        .message-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .avatar {
+            margin-right: 5px;
+        }
+
+        .sender {
+            font-weight: 500;
+        }
+
         .message-content {
             background-color: white;
             padding: 12px;
@@ -375,6 +393,33 @@
             resize: none;
             font-family: inherit;
             font-size: 1rem;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        /* 追加: 待機状態のテキストエリアのスタイル */
+        textarea.waiting-input {
+            border-color: var(--waiting-input-color);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+            animation: pulse 2s infinite;
+        }
+
+        /* 追加: フォーカス時のテキストエリアスタイル */
+        textarea.focused {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+
+        /* 追加: アニメーション定義 */
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 8px rgba(52, 152, 219, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(52, 152, 219, 0);
+            }
         }
 
         .button-group {
