@@ -741,10 +741,13 @@ class LLMCommunicationTracker:
                     additional_instructions = active_tasks[session_id]["additional_instructions"]
                     if additional_instructions:
                         # 追加指示を組み合わせた新しいプロンプトを生成
-                        combined_instructions = "\n\n追加指示:\n" + "\n".join(additional_instructions)
+                        combined_instructions = "\n\n**追加指示**:\n" + "\n".join([
+                            f"- {instr}" for instr in additional_instructions
+                        ])
                         
                         # 元のプロンプトに追加指示を追加
                         if isinstance(prompt, str):
+                            # 元のプロンプトの終わりに追加指示を追加
                             prompt = prompt + combined_instructions
                             
                             # kwargsまたはargsを更新
@@ -760,6 +763,13 @@ class LLMCommunicationTracker:
                                 session_id,
                                 f"追加指示 ({len(additional_instructions)}件) をタスクに統合しました"
                             )
+                            
+                            # 追加指示内容を思考ステップに記録
+                            for i, instr in enumerate(additional_instructions):
+                                ThinkingTracker.add_thinking_step(
+                                    session_id,
+                                    f"統合した追加指示 #{i+1}: {instr}"
+                                )
                             
                             # 修正フラグをリセット
                             active_tasks[session_id]["modified"] = False
@@ -1105,6 +1115,9 @@ async def process_prompt(session_id: str, prompt: str, project_id: Optional[str]
             # ====== EnhancedManusを使用して処理 ======
             enhanced_agent = create_enhanced_agent(prompt)
             
+            # コミュニケーショントラッカーをインストール
+            comm_tracker = LLMCommunicationTracker(session_id, enhanced_agent)
+            
             # 检查任务是否被取消
             cancel_event = cancel_events.get(session_id)
             if cancel_event and cancel_event.is_set():
@@ -1206,6 +1219,13 @@ async def process_prompt(session_id: str, prompt: str, project_id: Optional[str]
                     agent.llm._callbacks["after_request"].remove(on_after_request)
             except (ValueError, Exception) as e:
                 print(f"コールバックのクリーンアップ中にエラーが発生しました: {str(e)}")
+
+        # コミュニケーショントラッカーのクリーンアップ
+        if "comm_tracker" in locals():
+            try:
+                comm_tracker.uninstall_hooks()
+            except Exception as e:
+                print(f"コミュニケーショントラッカーのクリーンアップ中にエラーが発生しました: {str(e)}")
 
         # 清理取消事件
         if session_id in cancel_events:
