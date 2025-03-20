@@ -19,6 +19,7 @@ DEFAULT_IGNORED_PATHS = [
     "/api/sessions/",  # セッション情報取得エンドポイント
     "/static/",  # 静的ファイル
     "/favicon.ico",  # ファビコン
+    "/ws/",  # WebSocketエンドポイント
 ]
 
 
@@ -36,9 +37,15 @@ class LogFilterMiddleware(BaseHTTPMiddleware):
         self.ignored_paths = ignored_paths or DEFAULT_IGNORED_PATHS
         self.min_duration_ms = min_duration_ms
         
-        # UvicornのアクセスロガーのログレベルをWARNINGに設定
+        # UvicornのアクセスロガーとエラーロガーのログレベルをWARNINGに設定
         uvicorn_access_logger = logging.getLogger("uvicorn.access")
         uvicorn_access_logger.setLevel(logging.WARNING)
+        
+        uvicorn_error_logger = logging.getLogger("uvicorn.error")
+        uvicorn_error_logger.setLevel(logging.WARNING)
+        
+        # WebSocketに関連するログも抑制
+        logging.getLogger("websockets").setLevel(logging.WARNING)
         
         # SILENT_ENDPOINTSは明示的に無視するエンドポイントの完全なパスを格納
         global SILENT_ENDPOINTS
@@ -89,6 +96,13 @@ def setup_logging(level: int = logging.INFO):
     # 不要なモジュールのログレベル抑制
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
+    
+    # WebSocketとUvicornのログレベルを明示的に設定
+    logging.getLogger("uvicorn").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
+    logging.getLogger("websockets").setLevel(logging.WARNING)
+    logging.getLogger("websockets.protocol").setLevel(logging.WARNING)
 
 
 def configure_app_logging(app: FastAPI, min_duration_ms: int = 500):
@@ -113,6 +127,9 @@ def configure_app_logging(app: FastAPI, min_duration_ms: int = 500):
     ]
     
     for logger in uvicorn_loggers:
+        # uvicornのログレベルをWARNINGに設定
+        logger.setLevel(logging.WARNING)
+        
         # uvicornのハンドラを確認
         if not logger.handlers:
             # ハンドラが未設定の場合は基本設定
@@ -122,3 +139,23 @@ def configure_app_logging(app: FastAPI, min_duration_ms: int = 500):
                 '%Y-%m-%d %H:%M:%S'
             ))
             logger.addHandler(handler)
+
+
+def set_uvicorn_log_level(level=logging.WARNING):
+    """
+    Uvicornのログレベルを動的に設定する
+    
+    Args:
+        level: 設定するログレベル（デフォルトはWARNING）
+    """
+    loggers = [
+        "uvicorn",
+        "uvicorn.access",
+        "uvicorn.error",
+        "websockets",
+        "websockets.protocol"
+    ]
+    
+    for logger_name in loggers:
+        logger = logging.getLogger(logger_name)
+        logger.setLevel(level)
