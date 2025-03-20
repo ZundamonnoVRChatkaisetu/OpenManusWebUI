@@ -141,12 +141,8 @@ class AdditionalInstructionRequest(BaseModel):
 
 @app.get("/", response_class=HTMLResponse)
 async def get_home(request: Request):
-    """主页入口 - 使用connected界面"""
-    return HTMLResponse(
-        content=open(
-            current_dir / "static" / "connected_interface.html", encoding="utf-8"
-        ).read()
-    )
+    """主页入口 - テンプレートシステムを使用してHTMLを返す"""
+    return templates.TemplateResponse("connected_interface.html", {"request": request})
 
 
 @app.get("/original", response_class=HTMLResponse)
@@ -157,12 +153,8 @@ async def get_original_interface(request: Request):
 
 @app.get("/connected", response_class=HTMLResponse)
 async def get_connected_interface(request: Request):
-    """连接后端的新界面入口 (与主页相同)"""
-    return HTMLResponse(
-        content=open(
-            current_dir / "static" / "connected_interface.html", encoding="utf-8"
-        ).read()
-    )
+    """连接后端的新界面入口 (テンプレートシステムを使用)"""
+    return templates.TemplateResponse("connected_interface.html", {"request": request})
 
 
 @app.post("/api/set_language")
@@ -1171,7 +1163,7 @@ async def process_prompt(session_id: str, prompt: str, project_id: Optional[str]
                 )
                 active_sessions[session_id]["generated_files"] = file_list
             
-            # 記録完成情况
+            # 记录完成情况
             log.info("処理完了")
             ThinkingTracker.add_conclusion(
                 session_id, f"タスク処理が完了しました！ワークスペース {workspace_dir.name} に結果が生成されました。"
