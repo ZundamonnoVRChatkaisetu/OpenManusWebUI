@@ -764,3 +764,234 @@
    - **トップページのテンプレート化**: `/`エンドポイントでTemplateResponseを使用
    - **連携インターフェースの修正**: `/connected`エンドポイントもテンプレート処理に変更
    - **静的ファイル提供の確認**: 静的ファイルが適切に配信されることを確認
+
+## 21. ディレクトリ構成とファイルの役割（2025-03-21）
+
+### プロジェクト全体構造
+
+```
+OpenManusWebUI/
+├── app/                            # メインアプリケーションコード
+│   ├── agent/                      # AI エージェント関連
+│   ├── flow/                       # プロンプトフロー管理
+│   ├── llm/                        # 言語モデル通信
+│   ├── utils/                      # ユーティリティ
+│   └── web/                        # Web インターフェース
+│       ├── static/                 # 静的ファイル
+│       │   ├── css/                # スタイルシート
+│       │   ├── js/                 # JavaScriptファイル
+│       │   └── images/             # 画像ファイル
+│       ├── templates/              # HTMLテンプレート
+│       └── tools/                  # ツール連携機能
+├── logs/                           # ログファイル
+├── workspace/                      # 旧ワークスペース
+├── project_workspace/              # プロジェクトごとのワークスペース
+└── web_run.py                      # Webサーバー起動スクリプト
+```
+
+### 主要ファイルの説明
+
+#### アプリケーション起動とサーバー制御
+
+- **web_run.py**
+  - 役割: Webアプリケーションサーバーの起動スクリプト
+  - 機能: 
+    - FastAPI/Uvicornサーバーの起動
+    - LMStudioサーバーの自動起動（--lmstudioオプション使用時）
+    - コマンドラインオプション処理
+    - プロセス管理とクリーンアップ
+
+#### Webアプリケーション本体
+
+- **app/web/app.py**
+  - 役割: FastAPIメインアプリケーション
+  - 機能:
+    - ルーティング設定
+    - APIエンドポイント実装
+    - WebSocketハンドラ
+    - データベース連携
+    - テンプレートレンダリング
+
+- **app/web/database.py**
+  - 役割: データベース操作（SQLite）
+  - 機能:
+    - プロジェクト/セッション/メッセージの保存と取得
+    - データモデルの管理
+
+- **app/web/models.py**
+  - 役割: Pydanticモデル定義
+  - 機能:
+    - APIリクエスト/レスポンスのスキーマ定義
+    - バリデーションルール
+
+#### ウェブフロントエンド
+
+- **app/web/templates/connected_interface.html**
+  - 役割: メインユーザーインターフェースのテンプレート
+  - 機能:
+    - チャットインターフェース
+    - プロジェクト管理UI
+    - ファイル表示
+    - 思考プロセス表示
+
+- **app/web/static/connected_interface.js**
+  - 役割: メインフロントエンドロジック
+  - 機能:
+    - API通信
+    - UI更新
+    - イベントハンドリング
+    - WebSocket通信
+
+- **app/web/static/style.css**
+  - 役割: 基本スタイル定義
+  - 機能:
+    - レイアウト
+    - コンポーネントスタイル
+    - テーマカラー
+
+- **app/web/static/js/thinking_process_visualizer.js**
+  - 役割: 思考プロセス視覚化
+  - 機能:
+    - 思考ステップの表示
+    - タイムスタンプと種類の表現
+    - リアルタイム更新
+
+- **app/web/static/js/tool_usage_visualizer.js**
+  - 役割: ツール使用状況視覚化
+  - 機能:
+    - ツール実行の表示
+    - パラメータと結果の表示
+    - ツールアイコンと種類の表現
+
+- **app/web/static/js/model_visualization_controller.js**
+  - 役割: 視覚化コンポーネントの統合
+  - 機能:
+    - 視覚化の初期化と管理
+    - UIとの連携
+    - 多言語対応
+
+#### モジュール管理
+
+- **app/web/project_manager.js**
+  - 役割: プロジェクト管理機能
+  - 機能:
+    - プロジェクト作成・編集・削除
+    - セッション管理
+    - プロジェクト指示管理
+
+- **app/web/connected_chatManager.js**
+  - 役割: チャット管理
+  - 機能:
+    - メッセージ表示
+    - チャット履歴管理
+    - メッセージ書式設定
+
+- **app/web/connected_workspaceManager.js**
+  - 役割: ワークスペース管理
+  - 機能:
+    - ファイル一覧取得
+    - ファイル表示
+    - プロジェクトとファイルの関連付け
+
+#### AIエージェント実装
+
+- **app/agent/enhanced_manus.py**
+  - 役割: 強化版AIエージェント
+  - 機能:
+    - プロンプト処理
+    - ツール連携
+    - 出力フォーマット
+    - 言語検出と適応
+
+- **app/web/enhanced_agent_factory.py**
+  - 役割: エージェント生成
+  - 機能:
+    - エージェントインスタンス作成
+    - 設定適用
+    - ツール連携設定
+
+#### ツール連携機能
+
+- **app/web/tools/routes.py**
+  - 役割: ツールAPIルーター
+  - 機能:
+    - ツール実行エンドポイント
+    - 設定検証
+    - 認証管理
+
+- **app/web/tools/tool_manager.py**
+  - 役割: ツール管理
+  - 機能:
+    - ツール登録
+    - ツール実行
+    - 結果処理
+
+- **app/web/tools/github_tool.py**
+  - 役割: GitHub連携
+  - 機能:
+    - リポジトリ操作
+    - ファイル操作
+    - イシュー管理
+
+- **app/web/tools/web_search_tool.py**
+  - 役割: Web検索機能
+  - 機能:
+    - 検索API連携
+    - 結果整形
+    - クエリ処理
+
+#### ユーティリティとヘルパー
+
+- **app/utils/language_utils.py**
+  - 役割: 言語検出と翻訳
+  - 機能:
+    - 入力テキストの言語検出
+    - 翻訳テンプレート
+    - 言語設定の保持
+
+- **app/web/thinking_tracker.py**
+  - 役割: 思考プロセス管理
+  - 機能:
+    - 思考ステップの記録
+    - WebSocket更新
+    - フォーマット処理
+
+- **app/web/logging_config.py**
+  - 役割: ロギング設定
+  - 機能:
+    - ログフィルタリング
+    - ログレベル設定
+    - ログフォーマット
+
+### 機能単位での依存関係
+
+#### チャット処理フロー
+1. ユーザー入力 → connected_interface.js
+2. API呼び出し → app.py (/api/chat)
+3. セッション作成 → database.py
+4. エージェント生成 → enhanced_agent_factory.py
+5. プロンプト処理 → enhanced_manus.py
+6. LLM通信 → app/llm.py
+7. 結果取得と保存 → database.py
+8. WebSocket通知 → app.py (websocket_endpoint)
+9. UI更新 → connected_interface.js
+
+#### プロジェクト管理フロー
+1. プロジェクト操作 UI → connected_interface.js
+2. プロジェクトマネージャー → project_manager.js
+3. API呼び出し → app.py (/api/projects/*)
+4. データベース操作 → database.py
+5. ファイルシステム操作 → app.py (workspace関連)
+6. UI表示更新 → project_manager.js → connected_interface.js
+
+#### ツール実行フロー
+1. AIがツールを呼び出し → enhanced_manus.py
+2. ツール実行リクエスト → app/web/tools/routes.py
+3. ツールマネージャー → tool_manager.py
+4. 特定ツール処理 → github_tool.py / web_search_tool.py
+5. 結果返却 → tool_manager.py → enhanced_manus.py
+6. 思考ステップ記録 → thinking_tracker.py
+7. WebSocket通知 → app.py
+8. UI表示更新 → thinking_process_visualizer.js / tool_usage_visualizer.js
+
+この構成により、UIの変更と機能追加が適切に分離され、コンポーネントごとの責任範囲が明確になっています。また、テンプレートシステムの適切な使用により、UIの見た目と動作ロジックが分離され、保守性が向上しています。
