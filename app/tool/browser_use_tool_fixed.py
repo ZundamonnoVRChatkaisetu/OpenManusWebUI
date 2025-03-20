@@ -7,6 +7,7 @@ import logging
 import platform
 import sys
 import os
+import importlib.util
 from typing import Optional, Dict, Any
 
 from pydantic import Field, field_validator
@@ -25,29 +26,32 @@ _BrowserConfig = None
 
 # Microsoft StoreのPythonを検出（NotImplementedError対策）
 _is_ms_store_python = False
-if platform.system() == "Windows":
-    if sys.executable.startswith("C:\\Program Files\\WindowsApps\\"):
-        _is_ms_store_python = True
-    # エラーメッセージに表示される「C:\Program Files\WindowsApps\」が含まれる場合も検出
-    try:
-        asyncio.create_subprocess_exec
-    except (NotImplementedError, AttributeError):
-        _is_ms_store_python = True
-    except Exception:
-        pass
-    
-    if _is_ms_store_python:
-        logger.warning("Microsoft Store版Pythonが検出されました。ブラウザツールが制限される可能性があります。")
+_is_windows = platform.system() == "Windows"
 
-# WindowsではPlaywrightの使用を完全に無効化
-if platform.system() == "Windows":
+# Windows環境ではPlaywrightを完全に無効化し、Seleniumを常に使用
+if _is_windows:
     logger.warning("Windows環境が検出されました。Seleniumをブラウザバックエンドとして使用します。")
     _is_ms_store_python = True  # 強制的にPlaywrightを無効化
 
 # Selenium WebDriverを使用するフラグ（フォールバック用）
 _use_selenium = False
 
-if not _is_ms_store_python:
+# モジュール存在チェック関数
+def is_module_available(module_name):
+    """指定されたモジュールが使用可能かチェックする"""
+    return importlib.util.find_spec(module_name) is not None
+
+# Windows環境でのPlaywright無効化
+if _is_windows:
+    # Playwrightモジュールを無効化（インポートを試みない）
+    logger.warning("Windows環境のため、Playwrightの自動検出を無効化します。")
+    _playwright_available = False
+else:
+    # その他の環境ではPlaywrightの存在をチェック
+    _playwright_available = is_module_available("playwright")
+
+# ブラウザツールの初期化
+if not _is_ms_store_python and is_module_available("browser_use"):
     try:
         from browser_use import Browser as BrowserUseBrowser
         from browser_use import BrowserConfig
@@ -61,17 +65,20 @@ if not _is_ms_store_python:
     except (ImportError, NotImplementedError) as e:
         logger.warning(f"browser_use モジュールのロードに失敗しました: {str(e)}")
         
-        try:
-            # 代替として手動でPlaywrightを使用
-            from playwright.async_api import async_playwright
-            _browser_use_available = True
-            _browser_module = "playwright"
-            logger.info("Playwright モジュールを代替としてロードしました")
-        except (ImportError, NotImplementedError) as e:
-            logger.warning(f"Playwrightモジュールのロードにも失敗しました: {str(e)}")
-            _is_ms_store_python = True  # フォールバックとしてSeleniumを使用する
+# Windows以外の環境でのみPlaywrightをチェック
+if not _is_windows and not _browser_use_available and _playwright_available:
+    try:
+        # 代替として手動でPlaywrightを使用
+        from playwright.async_api import async_playwright
+        _browser_use_available = True
+        _browser_module = "playwright"
+        logger.info("Playwright モジュールを代替としてロードしました")
+    except (ImportError, NotImplementedError) as e:
+        logger.warning(f"Playwrightモジュールのロードにも失敗しました: {str(e)}")
+        _is_ms_store_python = True  # フォールバックとしてSeleniumを使用する
 else:
-    logger.warning("Microsoft Store版Python/Windows環境のため、Playwrightの使用をスキップします")
+    if _is_windows:
+        logger.warning("Windows環境のため、Playwrightの使用をスキップします")
 
 # 他のバックエンドが使用できない場合、Seleniumを試行
 if _is_ms_store_python or not _browser_use_available:
@@ -196,8 +203,8 @@ class BrowserUseTool(BaseTool):
                 self.page = await self.context.get_current_page()
             return self.context
         
-        elif _browser_module == "playwright":
-            # Playwrightを直接使用
+        elif _browser_module == "playwright" and not _is_windows:
+            # Playwrightを直接使用（Windows以外の環境のみ）
             if self.playwright is None:
                 self.playwright = await async_playwright().start()
                 self.browser = await self.playwright.chromium.launch(headless=False)
@@ -205,13 +212,14 @@ class BrowserUseTool(BaseTool):
                 self.page = await self.context.new_page()
             return self.page
         
-        elif _browser_module == "selenium":
-            # Seleniumを使用
+        elif _browser_module == "selenium" or _is_windows:
+            # Seleniumを使用（または強制的にWindowsの場合）
             if self.selenium_driver is None:
                 # Chromeオプションの設定
                 chrome_options = Options()
                 chrome_options.add_argument("--no-sandbox")
                 chrome_options.add_argument("--disable-dev-shm-usage")
+                chrome_options.add_argument("--disable-gpu")
                 # ヘッドレスモードの設定
                 # chrome_options.add_argument("--headless") # ヘッドレスは無効化
                 
@@ -225,6 +233,11 @@ class BrowserUseTool(BaseTool):
             
             return self.selenium_driver
         
+        if _is_windows:
+            # Windows環境では強制的にSeleniumを使用
+            logger.warning("Windows環境のためSeleniumの使用を強制します")
+            raise RuntimeError("設定エラー: Windows環境ではSeleniumが使用されるべきですが、別のバックエンドが設定されています")
+            
         raise RuntimeError("初期化に必要なブラウザモジュールが見つかりません")
 
     async def execute(
@@ -244,20 +257,26 @@ class BrowserUseTool(BaseTool):
         if not _browser_use_available:
             return ToolResult(error="ブラウザツールが利用できません: 必要なライブラリがインストールされていません")
 
+        # Windows環境ではSeleniumを強制
+        if _is_windows and _browser_module != "selenium":
+            logger.warning("Windows環境でSelenium以外のバックエンドが指定されています。強制的にSeleniumを使用します。")
+            global _browser_module
+            _browser_module = "selenium"
+
         async with self.lock:
             try:
-                if _browser_module == "browser_use":
-                    # browser_useモジュールを使用する場合
+                if _browser_module == "browser_use" and not _is_windows:
+                    # browser_useモジュールを使用する場合（Windows以外）
                     return await self._execute_with_browser_use(
                         action, url, index, text, script, scroll_amount, tab_id, **kwargs
                     )
-                elif _browser_module == "playwright":
-                    # Playwrightを直接使用する場合
+                elif _browser_module == "playwright" and not _is_windows:
+                    # Playwrightを直接使用する場合（Windows以外）
                     return await self._execute_with_playwright(
                         action, url, index, text, script, scroll_amount, tab_id, **kwargs
                     )
-                elif _browser_module == "selenium":
-                    # Seleniumを使用する場合
+                elif _browser_module == "selenium" or _is_windows:
+                    # Seleniumを使用する場合（または強制的にWindowsの場合）
                     return await self._execute_with_selenium(
                         action, url, index, text, script, scroll_amount, tab_id, **kwargs
                     )
@@ -336,6 +355,10 @@ class BrowserUseTool(BaseTool):
         self, action, url, index, text, script, scroll_amount, tab_id, **kwargs
     ) -> ToolResult:
         """Playwrightを直接使用したブラウザアクションの実行"""
+        # Windows環境ではPlaywrightを無効化
+        if _is_windows:
+            return await self._execute_with_selenium(action, url, index, text, script, scroll_amount, tab_id, **kwargs)
+            
         page = await self._ensure_browser_initialized()
 
         if action == "navigate":
