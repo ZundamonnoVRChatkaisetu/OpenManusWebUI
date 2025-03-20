@@ -90,13 +90,13 @@
 
 18. ✅ **モデル思考プロセスと操作状況の可視化機能の実装**（2025-03-21）
     - 思考プロセス表示機能
-    - 操作状況の視覚化
+    - 操作状況の視覺化
     - デザイン調整
 
 19. ✅ **Manus風のUIデザイン実装**（2025-03-21）
     - CSSの作成
     - HTMLテンプレート刷新
-    - 視覚化コンポーネント実装
+    - 視覺化コンポーネント実装
     - UI切り替え機能
 
 20. ✅ **UIが更新されない問題の修正**（2025-03-21）
@@ -140,28 +140,42 @@
     - 実行時例外処理の改善
     - モジュール間の依存関係整理
 
+27. ✅ **ブラウザツールのモジュール分割とリファクタリング**（2025-03-21）
+    - ブラウザバックエンドの分割
+    - コンポーネント化とテスト性向上
+    - Windows環境でのasyncio完全無効化
+    - 実装コードの簡素化
+
 ## ディレクトリ構成と主要ファイルの役割
 
 ### プロジェクト構造
 
 ```
 OpenManusWebUI/
-├── app/                          # メインアプリケーション
-│   ├── agent/                    # AIエージェント
-│   ├── flow/                     # プロンプトフロー
-│   ├── llm/                      # 言語モデル通信
-│   ├── utils/                    # ユーティリティ
-│   └── web/                      # Webインターフェース
-│       ├── static/               # 静的ファイル
-│       │   ├── css/              # スタイルシート
-│       │   ├── js/               # JavaScriptファイル
-│       │   └── images/           # 画像
-│       ├── templates/            # HTMLテンプレート
-│       └── tools/                # ツール連携
-├── logs/                         # ログファイル
-├── workspace/                    # 旧ワークスペース
-├── project_workspace/            # プロジェクト別ワークスペース
-└── web_run.py                    # サーバー起動スクリプト
+├─ app/                          # メインアプリケーション
+│   ├─ agent/                    # AIエージェント
+│   ├─ flow/                     # プロンプトフロー
+│   ├─ llm/                      # 言語モデル通信
+│   ├─ tool/                     # ツール機能
+│   │   ├─ browser_backends/     # ブラウザバックエンド
+│   │   │   ├─ __init__.py       # 初期化
+│   │   │   ├─ asyncio_patch.py  # Windows環境対応
+│   │   │   ├─ backend_manager.py # バックエンド管理
+│   │   │   └─ platform_detector.py # 実行環境検出
+│   │   ├─ base.py              # 基本ツールクラス
+│   │   └─ browser_use_tool.py   # ブラウザ操作ツール
+│   ├─ utils/                    # ユーティリティ
+│   └─ web/                      # Webインターフェース
+│       ├─ static/               # 静的ファイル
+│       │   ├─ css/              # スタイルシート
+│       │   ├─ js/               # JavaScriptファイル
+│       │   └─ images/           # 画像
+│       ├─ templates/            # HTMLテンプレート
+│       └─ tools/                # ツール連携
+├─ logs/                         # ログファイル
+├─ workspace/                    # 旧ワークスペース
+├─ project_workspace/            # プロジェクト別ワークスペース
+└─ web_run.py                    # サーバー起動スクリプト
 ```
 
 ### 主要ファイルの役割
@@ -178,8 +192,8 @@ OpenManusWebUI/
 - **app/web/templates/connected_interface.html**: メインUI
 - **app/web/static/connected_interface.js**: フロントエンドロジック
 - **app/web/static/style.css**: 基本スタイル
-- **app/web/static/css/visualizers.css**: 思考プロセス視覚化スタイル
-- **app/web/static/js/**: 視覚化コンポーネント各種
+- **app/web/static/css/visualizers.css**: 思考プロセス視覺化スタイル
+- **app/web/static/js/**: 視覺化コンポーネント各種
 
 #### 機能モジュール
 - **app/web/project_manager.js**: プロジェクト管理
@@ -195,7 +209,8 @@ OpenManusWebUI/
 - **app/web/tools/tool_manager.py**: ツール管理
 - **app/web/tools/github_tool.py**: GitHub連携
 - **app/web/tools/web_search_tool.py**: Web検索
-- **app/tool/browser_use_tool_fixed.py**: クロスプラットフォーム対応ブラウザツール
+- **app/tool/browser_use_tool.py**: クロスプラットフォーム対応ブラウザツール
+- **app/tool/browser_backends/**: ブラウザ操作のバックエンド実装
 
 #### ユーティリティ
 - **app/utils/language_utils.py**: 言語検出
