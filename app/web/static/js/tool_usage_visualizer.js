@@ -1,90 +1,59 @@
 /**
  * tool_usage_visualizer.js
- * AIモデルのツール使用状況を視覚的に表示するためのモジュール
+ * ツール使用状況を視覚的に表示するためのモジュール
  */
 
 // ToolUsageVisualizer クラス
 class ToolUsageVisualizer {
-    constructor(containerId = 'tool-usage-content') {
+    constructor(containerId = 'tool-usage-items') {
         this.container = document.getElementById(containerId);
-        this.activeTools = new Map(); // 現在アクティブなツール
-        this.toolHistory = []; // ツール使用履歴
-        this.maxHistoryItems = 5; // 表示する最大履歴数
+        this.tools = [];
+        this.maxTools = 5; // 表示する最大ツール数
         this.currentLanguage = 'ja-JP'; // デフォルト言語
         
-        // ツールタイプに関連するアイコン
+        // ツールアイコンマッピング
         this.toolIcons = {
-            'github': 'fab fa-github',
-            'web_search': 'fas fa-search',
-            'file_analysis': 'fas fa-file-alt',
-            'code_execution': 'fas fa-code',
-            'database': 'fas fa-database',
-            'default': 'fas fa-tools'
+            'github': '📂',
+            'search': '🔍',
+            'web': '🌐',
+            'file': '📄',
+            'database': '💾',
+            'api': '🔌',
+            'default': '🔧'
         };
     }
 
     /**
-     * ツールの使用開始を記録する
+     * ツール実行を追加する
      * @param {string} toolName - ツール名
-     * @param {string} toolType - ツールタイプ（'github', 'web_search'など）
-     * @param {string} description - ツール使用の説明
+     * @param {object} params - パラメータ
+     * @param {string|object} result - 実行結果
+     * @param {boolean} isError - エラーフラグ
      */
-    startToolUsage(toolName, toolType = 'default', description = '') {
-        const startTime = new Date();
-        
-        // アクティブなツールリストに追加
-        this.activeTools.set(toolName, {
-            type: toolType,
-            description: description,
-            startTime: startTime
+    addToolExecution(toolName, params, result, isError = false) {
+        // ツール実行情報を配列に追加
+        this.tools.push({
+            name: toolName,
+            params: params,
+            result: result,
+            isError: isError,
+            timestamp: new Date()
         });
-        
+
+        // 最大数を超えた場合は古いツールを削除
+        if (this.tools.length > this.maxTools) {
+            this.tools.shift();
+        }
+
         // UI更新
         this.updateUI();
     }
 
     /**
-     * ツールの使用終了を記録する
-     * @param {string} toolName - ツール名
-     * @param {string} result - ツール実行結果の概要（成功/失敗など）
+     * 全てのツールをクリアする
      */
-    endToolUsage(toolName, result = 'completed') {
-        // アクティブなツールが存在するか確認
-        if (this.activeTools.has(toolName)) {
-            const tool = this.activeTools.get(toolName);
-            const endTime = new Date();
-            const duration = endTime - tool.startTime;
-            
-            // 履歴に追加
-            this.toolHistory.unshift({
-                name: toolName,
-                type: tool.type,
-                description: tool.description,
-                startTime: tool.startTime,
-                endTime: endTime,
-                duration: duration,
-                result: result
-            });
-            
-            // 履歴が最大数を超えた場合は古い項目を削除
-            if (this.toolHistory.length > this.maxHistoryItems) {
-                this.toolHistory.pop();
-            }
-            
-            // アクティブリストから削除
-            this.activeTools.delete(toolName);
-            
-            // UI更新
-            this.updateUI();
-        }
-    }
-
-    /**
-     * 全てのツール使用状況をリセットする
-     */
-    resetAllTools() {
-        this.activeTools.clear();
-        this.toolHistory = [];
+    clearTools() {
+        this.tools = [];
         this.updateUI();
     }
 
@@ -92,146 +61,104 @@ class ToolUsageVisualizer {
      * UIを更新する
      */
     updateUI() {
-        if (!this.container) return;
+        if (!this.container) {
+            this.checkContainer();
+            if (!this.container) return;
+        }
 
         // コンテナをクリア
         this.container.innerHTML = '';
 
-        // アクティブなツールを表示
-        if (this.activeTools.size > 0) {
-            const activeSection = document.createElement('div');
-            activeSection.className = 'active-tools-section';
-            
-            this.activeTools.forEach((tool, toolName) => {
-                const toolElement = this.createToolElement(toolName, tool, true);
-                activeSection.appendChild(toolElement);
-            });
-            
-            this.container.appendChild(activeSection);
+        // ツール実行がない場合
+        if (this.tools.length === 0) {
+            const emptyMessage = document.createElement('div');
+            emptyMessage.className = 'visualizer-empty';
+            emptyMessage.textContent = this.getTranslation('tools_empty', 'ツールは使用されていません');
+            this.container.appendChild(emptyMessage);
+            return;
         }
 
-        // 履歴を表示
-        if (this.toolHistory.length > 0) {
-            const historySection = document.createElement('div');
-            historySection.className = 'tool-history-section';
+        // 各ツール実行を表示
+        this.tools.forEach(tool => {
+            const toolElement = document.createElement('div');
+            toolElement.className = 'tool-execution';
             
-            // セクションヘッダー（履歴がある場合のみ）
-            if (this.activeTools.size > 0 && this.toolHistory.length > 0) {
-                const historyHeader = document.createElement('h5');
-                historyHeader.className = 'tool-history-header';
-                historyHeader.textContent = this.getTranslation('recent_tool_usage', '最近のツール使用');
-                historySection.appendChild(historyHeader);
+            // ヘッダー
+            const header = document.createElement('div');
+            header.className = 'tool-execution-header';
+            
+            const nameElement = document.createElement('div');
+            nameElement.className = 'tool-name';
+            
+            // ツール名からアイコンを決定
+            const icon = this.getToolIcon(tool.name);
+            nameElement.innerHTML = `<span class="tool-name-icon">${icon}</span> ${tool.name}`;
+            
+            const timestamp = document.createElement('div');
+            timestamp.className = 'tool-timestamp';
+            timestamp.textContent = tool.timestamp.toLocaleTimeString();
+            
+            header.appendChild(nameElement);
+            header.appendChild(timestamp);
+            
+            // パラメータ
+            const paramsElement = document.createElement('pre');
+            paramsElement.className = 'tool-params';
+            paramsElement.textContent = typeof tool.params === 'object' 
+                ? JSON.stringify(tool.params, null, 2) 
+                : tool.params;
+            
+            // 結果
+            const resultElement = document.createElement('div');
+            resultElement.className = tool.isError ? 'tool-error' : 'tool-result';
+            
+            // 結果テキストの整形
+            let resultText = '';
+            if (typeof tool.result === 'object') {
+                try {
+                    resultText = JSON.stringify(tool.result, null, 2);
+                } catch (e) {
+                    resultText = String(tool.result);
+                }
+            } else {
+                resultText = String(tool.result);
             }
             
-            // 各履歴項目
-            this.toolHistory.forEach(historyItem => {
-                const historyElement = this.createHistoryElement(historyItem);
-                historySection.appendChild(historyElement);
-            });
+            // 結果が長すぎる場合は省略
+            if (resultText.length > 500) {
+                resultText = resultText.substring(0, 497) + '...';
+            }
             
-            this.container.appendChild(historySection);
-        }
-
-        // ツール使用がない場合
-        if (this.activeTools.size === 0 && this.toolHistory.length === 0) {
-            const emptyMessage = document.createElement('div');
-            emptyMessage.className = 'tool-usage-empty';
-            emptyMessage.textContent = this.getTranslation('no_tool_usage', 'ツール使用はまだありません');
-            this.container.appendChild(emptyMessage);
-        }
+            resultElement.textContent = resultText;
+            
+            // 全て組み立て
+            toolElement.appendChild(header);
+            toolElement.appendChild(paramsElement);
+            toolElement.appendChild(resultElement);
+            
+            // コンテナに追加
+            this.container.appendChild(toolElement);
+        });
+        
+        // 最新のツールにスクロール
+        this.container.scrollTop = this.container.scrollHeight;
     }
-
+    
     /**
-     * ツール要素を作成する
+     * ツール名からアイコンを取得する
      * @param {string} toolName - ツール名
-     * @param {Object} tool - ツール情報
-     * @param {boolean} isActive - アクティブなツールかどうか
-     * @returns {HTMLElement} ツール要素
+     * @returns {string} - アイコン文字列
      */
-    createToolElement(toolName, tool, isActive) {
-        const toolElement = document.createElement('div');
-        toolElement.className = `tool-item ${isActive ? 'active' : ''}`;
+    getToolIcon(toolName) {
+        const lowerName = toolName.toLowerCase();
         
-        // アイコン
-        const iconClass = this.toolIcons[tool.type] || this.toolIcons.default;
-        const iconElement = document.createElement('i');
-        iconElement.className = `tool-icon ${iconClass} ${isActive ? 'fa-spin' : ''}`;
-        toolElement.appendChild(iconElement);
-        
-        // ツール情報
-        const infoElement = document.createElement('div');
-        infoElement.className = 'tool-info';
-        
-        // ツール名
-        const nameElement = document.createElement('div');
-        nameElement.className = 'tool-name';
-        nameElement.textContent = toolName;
-        infoElement.appendChild(nameElement);
-        
-        // 説明（あれば）
-        if (tool.description) {
-            const descElement = document.createElement('div');
-            descElement.className = 'tool-description';
-            descElement.textContent = tool.description;
-            infoElement.appendChild(descElement);
+        for (const [key, icon] of Object.entries(this.toolIcons)) {
+            if (lowerName.includes(key)) {
+                return icon;
+            }
         }
         
-        // 経過時間（アクティブな場合）
-        if (isActive) {
-            const elapsed = document.createElement('div');
-            elapsed.className = 'tool-elapsed';
-            const now = new Date();
-            const seconds = Math.floor((now - tool.startTime) / 1000);
-            elapsed.textContent = `${seconds}秒経過`;
-            infoElement.appendChild(elapsed);
-        }
-        
-        toolElement.appendChild(infoElement);
-        return toolElement;
-    }
-
-    /**
-     * 履歴要素を作成する
-     * @param {Object} historyItem - 履歴項目
-     * @returns {HTMLElement} 履歴要素
-     */
-    createHistoryElement(historyItem) {
-        const historyElement = document.createElement('div');
-        historyElement.className = `tool-history-item result-${historyItem.result}`;
-        
-        // アイコン
-        const iconClass = this.toolIcons[historyItem.type] || this.toolIcons.default;
-        const iconElement = document.createElement('i');
-        iconElement.className = `tool-icon ${iconClass}`;
-        historyElement.appendChild(iconElement);
-        
-        // 情報
-        const infoElement = document.createElement('div');
-        infoElement.className = 'tool-info';
-        
-        // 名前
-        const nameElement = document.createElement('div');
-        nameElement.className = 'tool-name';
-        nameElement.textContent = historyItem.name;
-        infoElement.appendChild(nameElement);
-        
-        // 説明（あれば）
-        if (historyItem.description) {
-            const descElement = document.createElement('div');
-            descElement.className = 'tool-description';
-            descElement.textContent = historyItem.description;
-            infoElement.appendChild(descElement);
-        }
-        
-        // 所要時間
-        const durationElement = document.createElement('div');
-        durationElement.className = 'tool-duration';
-        const seconds = Math.floor(historyItem.duration / 1000);
-        durationElement.textContent = `${seconds}秒`;
-        infoElement.appendChild(durationElement);
-        
-        historyElement.appendChild(infoElement);
-        return historyElement;
+        return this.toolIcons.default;
     }
 
     /**
@@ -251,8 +178,8 @@ class ToolUsageVisualizer {
      */
     getTranslation(key, defaultText) {
         // i18n.jsがロードされている場合はそれを使用
-        if (typeof getLocalizedString === 'function') {
-            return getLocalizedString(key) || defaultText;
+        if (typeof t === 'function') {
+            return t(key) || defaultText;
         }
         return defaultText;
     }
@@ -262,7 +189,7 @@ class ToolUsageVisualizer {
      */
     checkContainer() {
         if (!this.container) {
-            this.container = document.getElementById('tool-usage-content');
+            this.container = document.getElementById('tool-usage-items');
         }
     }
 }
