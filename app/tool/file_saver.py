@@ -12,7 +12,7 @@ class SaveFileParams(BaseModel):
     ファイル保存パラメータモデル
     """
     content: str
-    filename: str
+    file_path: str
     mode: Optional[str] = "w"
 
 
