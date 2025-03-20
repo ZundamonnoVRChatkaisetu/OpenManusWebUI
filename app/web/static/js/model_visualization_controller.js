@@ -1,356 +1,221 @@
 /**
  * model_visualization_controller.js
- * WebUIとWebSocketを介して、モデルの思考プロセスとツール使用状況の可視化を制御するコントローラー
+ * AIモデルの思考プロセスとツール使用状況の視覚化を統合的に管理するコントローラー
  */
 
+// ModelVisualizationController クラス
 class ModelVisualizationController {
-    constructor(options = {}) {
-        this.options = Object.assign({
-            thinkingContainerId: 'thinking-process-container',
-            toolUsageContainerId: 'tool-usage-container',
-            language: 'ja-JP',
-            webSocketEnabled: true,
-            debug: false
-        }, options);
+    constructor() {
+        // 依存するビジュアライザー
+        this.thinkingVisualizer = window.thinkingProcessVisualizer;
+        this.toolUsageVisualizer = window.toolUsageVisualizer;
         
-        this.websocket = null;
-        this.sessionId = null;
-        this.thinkingVisualizer = null;
-        this.toolUsageVisualizer = null;
-        this.isInitialized = false;
-        
-        // ツール使用パターン検出用の正規表現
-        this.toolPatterns = {
-            terminal: /実行(?:中|します).*?`([^`]+)`|command[:\s]+["|']?([^"|']+)["|']?/i,
-            browser: /URL[:\s]+["|']?(https?:\/\/[^\s"']+)["|']?|ブラウザで.*?開(?:きます|いています).*?["|']?(https?:\/\/[^\s"']+)["|']?/i,
-            file: /ファイル[:\s]+["|']?([^"']+\.[a-zA-Z0-9]+)["|']?|reading\sfile[:\s]+["|']?([^"']+\.[a-zA-Z0-9]+)["|']?/i,
-            api: /API[:\s]+["|']?([^"']+)["|']?|endpoint[:\s]+["|']?([^"']+)["|']?/i,
-            github: /GitHub.*?リポジトリ[:\s]+["|']?([^"']+)["|']?|clone.*?["|']?(https:\/\/github\.com\/[^"']+)["|']?/i
+        // ステップタイプのマッピング
+        this.stepTypeMapping = {
+            'thinking': 'reasoning',
+            'planning': 'planning',
+            'action': 'execution',
+            'observation': 'observation',
+            'tool_use': 'tool_use',
+            'reflection': 'reflection'
         };
         
-        // 初期化
-        this.initialize();
-    }
-    
-    /**
-     * コントローラーの初期化
-     */
-    initialize() {
-        if (this.isInitialized) return;
-        
-        // コンテナ要素の確認
-        if (!document.getElementById(this.options.thinkingContainerId)) {
-            const container = document.createElement('div');
-            container.id = this.options.thinkingContainerId;
-            container.className = 'thinking-process-container';
-            
-            // 適切な場所に挿入
-            const workspaceElement = document.querySelector('.left-panel');
-            if (workspaceElement) {
-                workspaceElement.appendChild(container);
-            } else {
-                document.body.appendChild(container);
-                console.warn('Left panel not found, appending to body');
-            }
-        }
-        
-        if (!document.getElementById(this.options.toolUsageContainerId)) {
-            const container = document.createElement('div');
-            container.id = this.options.toolUsageContainerId;
-            container.className = 'tool-usage-container';
-            
-            // 適切な場所に挿入
-            const workspaceElement = document.querySelector('.left-panel');
-            if (workspaceElement) {
-                workspaceElement.appendChild(container);
-            } else {
-                document.body.appendChild(container);
-                console.warn('Left panel not found, appending to body');
-            }
-        }
-        
-        // スタイルシートの読み込み
-        this.loadStylesheet('/static/css/visualizers.css');
-        
-        // ビジュアライザーの初期化
-        this.thinkingVisualizer = new ThinkingProcessVisualizer(
-            this.options.thinkingContainerId,
-            { 
-                language: this.options.language,
-                translationEnabled: true
-            }
-        );
-        
-        this.toolUsageVisualizer = new ToolUsageVisualizer(
-            this.options.toolUsageContainerId,
-            { 
-                language: this.options.language
-            }
-        );
-        
-        // イベントリスナーの追加
-        this.attachEventListeners();
-        
-        this.isInitialized = true;
-        this.log('ModelVisualizationController initialized');
-    }
-    
-    /**
-     * イベントリスナーの追加
-     */
-    attachEventListeners() {
-        // 言語変更リスナー
-        const languageSelector = document.getElementById('language-selector');
-        if (languageSelector) {
-            languageSelector.addEventListener('change', (e) => {
-                this.setLanguage(e.target.value);
-            });
-        }
-        
-        // チャットメッセージ送信イベント
-        const sendButton = document.getElementById('send-btn');
-        if (sendButton) {
-            sendButton.addEventListener('click', () => {
-                this.onMessageSent();
-            });
-        }
-        
-        // WebSockt接続イベントをモンキーパッチする
-        if (window.connectWebSocket && this.options.webSocketEnabled) {
-            const originalConnectWebSocket = window.connectWebSocket;
-            
-            window.connectWebSocket = (sessionId) => {
-                this.sessionId = sessionId;
-                
-                // 元の処理を呼び出す
-                const result = originalConnectWebSocket(sessionId);
-                
-                // WebSocketオブジェクトを取得
-                setTimeout(() => {
-                    this.patchWebSocketHandlers();
-                }, 100);
-                
-                return result;
-            };
-        }
-    }
-    
-    /**
-     * WebSocketハンドラのパッチ適用
-     */
-    patchWebSocketHandlers() {
-        // WebSocketオブジェクトを探す
-        if (!window.socket) {
-            console.warn('WebSocket object not found');
-            return;
-        }
-        
-        this.websocket = window.socket;
-        
-        // 元のonmessageハンドラを保存
-        const originalOnMessage = this.websocket.onmessage;
-        
-        // onmessageハンドラをオーバーライド
-        this.websocket.onmessage = (event) => {
-            // データの解析
-            const data = JSON.parse(event.data);
-            
-            // 思考ステップの処理
-            if (data.thinking_steps && data.thinking_steps.length > 0) {
-                data.thinking_steps.forEach(step => {
-                    this.processThinkingStep(step);
-                });
-            }
-            
-            // ログの処理
-            if (data.logs && data.logs.length > 0) {
-                data.logs.forEach(log => {
-                    this.processLog(log);
-                });
-            }
-            
-            // 元のハンドラを呼び出す
-            if (originalOnMessage) {
-                originalOnMessage.call(this.websocket, event);
-            }
-        };
-    }
-    
-    /**
-     * 思考ステップの処理
-     * @param {Object} step 思考ステップデータ
-     */
-    processThinkingStep(step) {
-        // 思考ステップを視覚化コンポーネントに追加
-        this.thinkingVisualizer.addThinkingStep(step);
-        
-        // ツール使用の検出
-        this.detectAndVisualizeToolUsage(step);
-        
-        this.log('Process thinking step:', step);
-    }
-    
-    /**
-     * ログの処理
-     * @param {Object} log ログデータ
-     */
-    processLog(log) {
-        // ログから必要な情報を抽出
-        const { level, message, timestamp } = log;
-        
-        // レベルに応じたログタイプの設定
-        let stepType = 'thinking';
-        if (level === 'ERROR') stepType = 'error';
-        else if (level === 'WARNING') stepType = 'warning';
-        
-        // 思考ステップとして追加
-        const step = {
-            message: message,
-            type: stepType,
-            timestamp: timestamp
+        // ツールタイプのマッピング
+        this.toolTypeMapping = {
+            'github': 'github',
+            'web_search': 'web_search',
+            'file': 'file_analysis',
+            'code': 'code_execution',
+            'database': 'database'
         };
         
-        this.thinkingVisualizer.addThinkingStep(step);
+        // 言語設定
+        this.currentLanguage = 'ja-JP';
         
-        // ツール使用の検出
-        this.detectAndVisualizeToolUsage(step);
-        
-        this.log('Process log:', log);
+        // ツール使用状況のステータス追跡
+        this.toolStatus = {};
     }
-    
+
     /**
-     * ツール使用の検出と視覚化
-     * @param {Object} step 思考ステップデータ
+     * 思考ステップを処理する
+     * @param {string} stepContent - 思考ステップの内容
+     * @param {string} stepType - ステップのタイプ
      */
-    detectAndVisualizeToolUsage(step) {
-        const message = step.message;
+    processThinkingStep(stepContent, stepType = 'thinking') {
+        // タイプのマッピング
+        const mappedType = this.stepTypeMapping[stepType] || 'reasoning';
         
-        // ツールタイプの判定
-        const toolData = this.extractToolData(message);
-        if (toolData) {
-            this.toolUsageVisualizer.showToolUsage(toolData);
+        // ステップ内容をローカライズ
+        const localizedStep = this.localizeStepContent(stepContent);
+        
+        // 思考ビジュアライザーにステップを追加
+        if (this.thinkingVisualizer) {
+            this.thinkingVisualizer.addStep(localizedStep, mappedType);
         }
+        
+        // ツール使用状況の検出
+        this.detectToolUsage(localizedStep, stepType);
     }
-    
+
     /**
-     * メッセージからツール使用データを抽出
-     * @param {string} message メッセージ
-     * @returns {Object|null} ツールデータ
+     * ステップ内容からツール使用状況を検出する
+     * @param {string} stepContent - 思考ステップの内容
+     * @param {string} stepType - ステップのタイプ
      */
-    extractToolData(message) {
-        // ターミナルコマンドの検出
-        let match = this.toolPatterns.terminal.exec(message);
-        if (match) {
-            const command = match[1] || match[2];
-            return {
-                type: 'terminal',
-                data: {
-                    command: command,
-                    directory: '~',
-                    status: 'running'
-                }
-            };
-        }
+    detectToolUsage(stepContent, stepType) {
+        // ツール使用の開始を検出
+        const startToolPattern = /using\s+tool\s+['"]?([a-zA-Z0-9_]+)['"]?|ツール\s*['"]?([a-zA-Z0-9_]+)['"]?\s*を使用|工具\s*['"]?([a-zA-Z0-9_]+)['"]?/i;
+        const startMatch = stepContent.match(startToolPattern);
         
-        // ブラウザアクセスの検出
-        match = this.toolPatterns.browser.exec(message);
-        if (match) {
-            const url = match[1] || match[2];
-            return {
-                type: 'browser',
-                data: {
-                    url: url,
-                    action: 'navigation'
+        if (startMatch && stepType === 'tool_use') {
+            const toolName = startMatch[1] || startMatch[2] || startMatch[3];
+            // ツール使用中になっていなければ開始を記録
+            if (!this.toolStatus[toolName] || !this.toolStatus[toolName].active) {
+                const toolType = this.detectToolType(toolName);
+                const description = this.extractToolDescription(stepContent);
+                
+                this.toolStatus[toolName] = {
+                    active: true,
+                    type: toolType,
+                    description: description,
+                    startTime: new Date()
+                };
+                
+                // ツール使用ビジュアライザーを更新
+                if (this.toolUsageVisualizer) {
+                    this.toolUsageVisualizer.startToolUsage(toolName, toolType, description);
                 }
-            };
-        }
-        
-        // ファイル操作の検出
-        match = this.toolPatterns.file.exec(message);
-        if (match) {
-            const filename = match[1] || match[2];
-            let action = 'read';
-            
-            if (message.includes('作成') || message.includes('create')) {
-                action = 'create';
-            } else if (message.includes('書き込み') || message.includes('write')) {
-                action = 'write';
-            } else if (message.includes('更新') || message.includes('update')) {
-                action = 'update';
-            } else if (message.includes('削除') || message.includes('delete')) {
-                action = 'delete';
             }
-            
-            return {
-                type: 'file',
-                data: {
-                    filename: filename,
-                    action: action
-                }
-            };
         }
         
-        // API操作の検出
-        match = this.toolPatterns.api.exec(message);
-        if (match) {
-            const endpoint = match[1] || match[2];
-            let method = 'GET';
-            
-            if (message.includes('POST') || message.includes('作成') || message.includes('create')) {
-                method = 'POST';
-            } else if (message.includes('PUT') || message.includes('更新') || message.includes('update')) {
-                method = 'PUT';
-            } else if (message.includes('DELETE') || message.includes('削除') || message.includes('delete')) {
-                method = 'DELETE';
+        // ツール使用の終了を検出
+        const endToolPattern = /tool\s+['"]?([a-zA-Z0-9_]+)['"]?\s+returned|ツール\s*['"]?([a-zA-Z0-9_]+)['"]?\s*の結果|工具\s*['"]?([a-zA-Z0-9_]+)['"]?\s*返回/i;
+        const endMatch = stepContent.match(endToolPattern);
+        
+        if (endMatch && (stepType === 'observation' || stepType === 'reflection')) {
+            const toolName = endMatch[1] || endMatch[2] || endMatch[3];
+            // ツールがアクティブなら終了を記録
+            if (this.toolStatus[toolName] && this.toolStatus[toolName].active) {
+                const result = this.detectToolResult(stepContent);
+                
+                this.toolStatus[toolName] = {
+                    active: false,
+                    result: result
+                };
+                
+                // ツール使用ビジュアライザーを更新
+                if (this.toolUsageVisualizer) {
+                    this.toolUsageVisualizer.endToolUsage(toolName, result);
+                }
             }
-            
-            return {
-                type: 'api',
-                data: {
-                    endpoint: endpoint,
-                    method: method,
-                    status: 'pending'
-                }
-            };
         }
-        
-        // GitHub操作の検出
-        match = this.toolPatterns.github.exec(message);
-        if (match) {
-            const repository = match[1] || match[2];
-            return {
-                type: 'github',
-                data: {
-                    repository: repository,
-                    description: `GitHub: ${repository}`
-                }
-            };
-        }
-        
-        // 他のツール操作パターンをここに追加...
-        
-        // 検出できなかった場合
-        if (message.includes('ツール') || message.includes('tool') || 
-            message.includes('実行') || message.includes('execute')) {
-            return {
-                type: 'default',
-                data: {
-                    description: message
-                }
-            };
-        }
-        
-        return null;
     }
-    
+
     /**
-     * 言語設定の変更
-     * @param {string} language 言語コード
+     * ツール名からツールタイプを推測する
+     * @param {string} toolName - ツール名
+     * @returns {string} ツールタイプ
+     */
+    detectToolType(toolName) {
+        toolName = toolName.toLowerCase();
+        
+        if (toolName.includes('github') || toolName.includes('git')) {
+            return 'github';
+        } else if (toolName.includes('search') || toolName.includes('brave') || toolName.includes('google')) {
+            return 'web_search';
+        } else if (toolName.includes('file') || toolName.includes('read') || toolName.includes('write')) {
+            return 'file_analysis';
+        } else if (toolName.includes('code') || toolName.includes('exec') || toolName.includes('run')) {
+            return 'code_execution';
+        } else if (toolName.includes('db') || toolName.includes('sql') || toolName.includes('database')) {
+            return 'database';
+        }
+        
+        return 'default';
+    }
+
+    /**
+     * ステップ内容からツールの説明を抽出する
+     * @param {string} stepContent - 思考ステップの内容
+     * @returns {string} ツールの説明
+     */
+    extractToolDescription(stepContent) {
+        // 目的や説明を抽出するパターン
+        const purposePattern = /to\s+([^.]+)|\(\s*([^)]+)\)|"([^"]+)"|「([^」]+)」/i;
+        const match = stepContent.match(purposePattern);
+        
+        if (match) {
+            return match[1] || match[2] || match[3] || match[4] || '';
+        }
+        
+        // パターンに一致しない場合は短い説明文を生成
+        const shortContent = stepContent.split('.')[0];
+        if (shortContent.length > 50) {
+            return shortContent.substring(0, 47) + '...';
+        }
+        
+        return shortContent;
+    }
+
+    /**
+     * ステップ内容からツール実行結果を推測する
+     * @param {string} stepContent - 思考ステップの内容
+     * @returns {string} ツール実行結果
+     */
+    detectToolResult(stepContent) {
+        const lowerContent = stepContent.toLowerCase();
+        
+        if (lowerContent.includes('error') || lowerContent.includes('failed') || 
+            lowerContent.includes('エラー') || lowerContent.includes('失敗') || 
+            lowerContent.includes('错误') || lowerContent.includes('失败')) {
+            return 'failed';
+        } else if (lowerContent.includes('warning') || lowerContent.includes('警告')) {
+            return 'warning';
+        }
+        
+        return 'completed';
+    }
+
+    /**
+     * ステップ内容をローカライズする
+     * @param {string} content - ステップ内容
+     * @returns {string} ローカライズされたステップ内容
+     */
+    localizeStepContent(content) {
+        // 英語以外の言語の場合は翻訳を試みる
+        if (this.currentLanguage !== 'en-US') {
+            // ここで翻訳するロジックを実装
+            // 単純な例: 頻出フレーズの置換
+            if (this.currentLanguage === 'ja-JP') {
+                content = content
+                    .replace(/I need to/g, '私は〜する必要があります')
+                    .replace(/I will/g, '私は〜します')
+                    .replace(/Let's/g, '〜しましょう')
+                    .replace(/First/g, '最初に')
+                    .replace(/Next/g, '次に')
+                    .replace(/Finally/g, '最後に');
+            } else if (this.currentLanguage === 'zh-CN') {
+                content = content
+                    .replace(/I need to/g, '我需要')
+                    .replace(/I will/g, '我将')
+                    .replace(/Let's/g, '让我们')
+                    .replace(/First/g, '首先')
+                    .replace(/Next/g, '接下来')
+                    .replace(/Finally/g, '最后');
+            }
+        }
+        
+        return content;
+    }
+
+    /**
+     * 言語設定を変更する
+     * @param {string} language - 言語コード（'ja-JP', 'en-US', 'zh-CN'など）
      */
     setLanguage(language) {
-        this.options.language = language;
+        this.currentLanguage = language;
         
-        // 各ビジュアライザーの言語設定を更新
+        // 依存するビジュアライザーの言語も更新
         if (this.thinkingVisualizer) {
             this.thinkingVisualizer.setLanguage(language);
         }
@@ -358,69 +223,64 @@ class ModelVisualizationController {
         if (this.toolUsageVisualizer) {
             this.toolUsageVisualizer.setLanguage(language);
         }
-        
-        this.log('Language set to:', language);
     }
-    
+
     /**
-     * メッセージ送信時の処理
+     * 全ての視覚化をリセットする
      */
-    onMessageSent() {
-        // 実行に必要ないため、このメソッドは空でよい
-        // ここにカスタムロジックを追加可能
-    }
-    
-    /**
-     * ツール操作の完了状態設定
-     * @param {string} toolType ツールタイプ
-     * @param {string} status 状態 ('success'|'error')
-     * @param {Object} resultData 結果データ
-     */
-    setToolComplete(toolType, status, resultData = {}) {
-        if (this.toolUsageVisualizer) {
-            this.toolUsageVisualizer.setComplete(toolType, status, resultData);
+    resetAllVisualizations() {
+        // 思考プロセスをリセット
+        if (this.thinkingVisualizer) {
+            this.thinkingVisualizer.clearSteps();
         }
+        
+        // ツール使用状況をリセット
+        if (this.toolUsageVisualizer) {
+            this.toolUsageVisualizer.resetAllTools();
+        }
+        
+        // ステータス追跡をリセット
+        this.toolStatus = {};
     }
-    
+
     /**
-     * スタイルシートの読み込み
-     * @param {string} href スタイルシートのパス
+     * すべての依存コンポーネントが存在するかチェックする
      */
-    loadStylesheet(href) {
-        // すでに読み込まれているか確認
-        const links = document.getElementsByTagName('link');
-        for (let i = 0; i < links.length; i++) {
-            if (links[i].rel === 'stylesheet' && links[i].href.includes(href)) {
-                return;
+    checkDependencies() {
+        // 思考プロセスビジュアライザーの確認
+        if (!this.thinkingVisualizer) {
+            this.thinkingVisualizer = window.thinkingProcessVisualizer;
+            if (this.thinkingVisualizer) {
+                this.thinkingVisualizer.checkContainer();
             }
         }
         
-        // 新しいスタイルシートを読み込む
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.type = 'text/css';
-        link.href = href;
-        document.head.appendChild(link);
-    }
-    
-    /**
-     * ログ出力（デバッグモードの場合のみ）
-     * @param  {...any} args ログ引数
-     */
-    log(...args) {
-        if (this.options.debug) {
-            console.log('[ModelVisualizationController]', ...args);
+        // ツール使用ビジュアライザーの確認
+        if (!this.toolUsageVisualizer) {
+            this.toolUsageVisualizer = window.toolUsageVisualizer;
+            if (this.toolUsageVisualizer) {
+                this.toolUsageVisualizer.checkContainer();
+            }
         }
     }
 }
 
-// グローバルスコープでエクスポート
-window.ModelVisualizationController = ModelVisualizationController;
+// グローバルインスタンスを作成
+window.modelVisualizationController = new ModelVisualizationController();
 
-// DOMの読み込み完了時に自動初期化
+// DOMのロード完了時のイベントリスナー
 document.addEventListener('DOMContentLoaded', () => {
-    // すでに初期化済みでなければ初期化
-    if (!window.modelVisualizationController) {
-        window.modelVisualizationController = new ModelVisualizationController();
+    // 依存関係のチェック
+    window.modelVisualizationController.checkDependencies();
+    
+    // 言語セレクタの変更イベントリスナー
+    const languageSelector = document.getElementById('language-selector');
+    if (languageSelector) {
+        languageSelector.addEventListener('change', (event) => {
+            window.modelVisualizationController.setLanguage(event.target.value);
+        });
+        
+        // 初期言語設定
+        window.modelVisualizationController.setLanguage(languageSelector.value);
     }
 });
