@@ -1,45 +1,81 @@
-"""
-強化エージェントファクトリー - Webアプリケーション用
+"""エージェント生成ファクトリー
+
+OpenManusエージェントを生成するためのファクトリー関数を提供します。
 """
 
 import os
-from typing import Optional
+from typing import List, Optional, Dict, Any, Union
 
-from app.agent.enhanced_manus_fixed import EnhancedManus
-from app.utils.language_utils import Language
+from app.agent.manus import Manus
+from app.agent.base import Agent
+from app.agent.enhanced_manus import EnhancedManus
+from app.agent.manasvi import Manasvi
+from app.llm.factory import create_llm_client
+from app.web.database import get_project
 
 
-def create_enhanced_agent(prompt: str = "") -> EnhancedManus:
+def create_agent(prompt: str, llm_vendor: str = "open-webui") -> Agent:
     """
-    適切に設定されたEnhancedManusエージェントを作成する
-    
+    プロンプトに基づいてエージェントを生成
+
     Args:
-        prompt: オプションの初期プロンプト（言語検出に使用される）
-        
+        prompt: ユーザープロンプト
+        llm_vendor: LLMベンダー名
+
     Returns:
-        設定されたEnhancedManusインスタンス
+        生成されたエージェント
     """
-    # 環境変数から設定を取得
-    show_thoughts = os.environ.get("ENHANCED_MANUS_SHOW_THOUGHTS") == "1"
-    disable_auto_files = os.environ.get("ENHANCED_MANUS_DISABLE_AUTO_FILES") == "1"
-    language_str = os.environ.get("ENHANCED_MANUS_LANGUAGE", "auto")
+    llm = create_llm_client(llm_vendor)
+    return Manus(llm)
+
+
+def create_enhanced_agent(
+    prompt: str, 
+    llm_vendor: str = "open-webui", 
+    session_id: Optional[str] = None,
+    project_id: Optional[str] = None,
+    **kwargs
+) -> EnhancedManus:
+    """
+    強化版エージェントを生成
+
+    Args:
+        prompt: ユーザープロンプト
+        llm_vendor: LLMベンダー名
+        session_id: セッションID（オプション）
+        project_id: プロジェクトID（オプション）
+        **kwargs: その他の引数
+
+    Returns:
+        生成された強化版エージェント
+    """
+    llm = create_llm_client(llm_vendor)
+    agent = EnhancedManus(llm)
     
-    # 言語設定
-    language: Optional[Language] = None
-    if language_str != "auto":
-        if language_str in ["en", "ja", "zh"]:
-            language = language_str
+    # セッションIDを設定
+    agent.session_id = session_id
     
-    # エージェントの作成と設定
-    agent = EnhancedManus()
+    # プロジェクトIDがある場合は設定
+    if project_id:
+        agent.current_project = project_id
     
-    # 思考プロセスの表示設定
-    agent.hide_thought_process = not show_thoughts
-    
-    # ファイル自動生成の設定
-    agent.auto_generate_files = not disable_auto_files
-    
-    # 言語設定
-    agent.language = language
+    # 環境変数から言語設定を取得
+    if "ENHANCED_MANUS_LANGUAGE" in os.environ:
+        agent.language = os.environ["ENHANCED_MANUS_LANGUAGE"]
     
     return agent
+
+
+def create_manasvi_agent(prompt: str, llm_vendor: str = "open-webui") -> Manasvi:
+    """
+    Manasviエージェントを生成
+
+    Args:
+        prompt: ユーザープロンプト
+        llm_vendor: LLMベンダー名
+
+    Returns:
+        生成されたManasviエージェント
+    """
+    llm = create_llm_client(llm_vendor)
+    return Manasvi(llm)
