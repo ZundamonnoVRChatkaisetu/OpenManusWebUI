@@ -13,6 +13,7 @@ from app.tool import Terminate, ToolCollection, BrowserUseTool
 from app.tool.file_saver import FileSaver, SaveFileParams, FileReader, FileList
 from app.tool.google_search import GoogleSearch
 from app.tool.python_execute import PythonExecute
+from app.tool.task_progress_tracker import TaskProgressTracker  # 進捗管理ツールをインポート
 from app.utils.language_utils import Language, detect_language, get_template
 from app.utils.output_formatter import (
     extract_final_result,
@@ -37,11 +38,12 @@ class EnhancedManus(Manus):
     - アプリ設計書やプロトタイプの自動生成
     - ファイル生成機能の強化
     - ワークスペースを使用したファイル操作
+    - 進捗管理機能の自動活用
     """
     
     name: str = "EnhancedManus"
     description: str = (
-        "An enhanced versatile agent with multi-language support and improved output formatting"
+        "An enhanced versatile agent with multi-language support, improved output formatting, and progress tracking"
     )
     
     # ユーザー指定の言語（設定されていない場合は自動検出）
@@ -59,6 +61,23 @@ class EnhancedManus(Manus):
     
     # 現在のプロジェクト
     current_project: Optional[str] = None
+    
+    # 進捗管理関連の設定
+    progress_tracking_enabled: bool = True  # 進捗管理を有効にする
+    
+    # ツールコレクションをオーバーライド（TaskProgressTrackerを含める）
+    available_tools: ToolCollection = Field(
+        default_factory=lambda: ToolCollection(
+            PythonExecute(), 
+            GoogleSearch(), 
+            BrowserUseTool(), 
+            FileSaver(), 
+            FileReader(), 
+            FileList(), 
+            TaskProgressTracker(),  # 進捗管理ツールを追加
+            Terminate()
+        )
+    )
     
     async def run(self, prompt: str, **kwargs) -> str:
         """
@@ -122,6 +141,19 @@ class EnhancedManus(Manus):
                 # 引数を更新
                 command.function.arguments = args_dict
         
+        # 進捗管理ツールの場合もプロジェクト情報を追加
+        if command.function and command.function.name == "task_progress_tracker":
+            # 引数を取得
+            args = command.function.arguments or "{}"
+            args_dict = eval(args) if isinstance(args, str) else args
+            
+            # プロジェクト情報が指定されていない場合は現在のプロジェクトを設定
+            if "project" not in args_dict and self.current_project:
+                args_dict["project"] = self.current_project
+                
+                # 引数を更新
+                command.function.arguments = args_dict
+        
         # 標準のツール実行処理を呼び出し
         result = await super().execute_tool(command)
         
@@ -163,7 +195,7 @@ class EnhancedManus(Manus):
             try:
                 # 結果からアプリ名と説明を抽出する試み
                 import re
-                app_name_match = re.search(r'app(?:\s+name)?[:\s]+([\"\']?)([^\"\':\n]+)\1', result, re.IGNORECASE)
+                app_name_match = re.search(r'app(?:\s+name)?[:\s]+([\"\']{0,1})([^\"\':\n]+)\1', result, re.IGNORECASE)
                 app_name = app_name_match.group(2) if app_name_match else "SampleApp"
                 
                 # 機能リストを抽出する試み
@@ -195,7 +227,7 @@ class EnhancedManus(Manus):
                     ]
                 
                 # アプリ説明を抽出する試み
-                description_match = re.search(r'description:?\s*([\"\']?)([^\"\']+)\1', result, re.IGNORECASE)
+                description_match = re.search(r'description:?\s*([\"\']{0,1})([^\"\']+)\1', result, re.IGNORECASE)
                 app_description = description_match.group(2) if description_match else "革新的なアプリケーション"
                 
                 # アプリ設計書を生成
