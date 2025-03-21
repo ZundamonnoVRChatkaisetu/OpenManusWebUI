@@ -21,6 +21,13 @@ _is_windows = None
 _is_ms_store_python = None
 _module_availability_cache = {}
 
+# モジュールとそのインストール方法のマッピング
+MODULE_INSTALL_INSTRUCTIONS = {
+    "selenium": "pip install selenium",
+    "playwright": "pip install playwright && playwright install",
+    "browser_use": "pip install browser-use"
+}
+
 
 def is_windows() -> bool:
     """現在の環境がWindowsかどうかを確認します
@@ -132,9 +139,34 @@ def is_module_available(module_name: str) -> bool:
     if result:
         logger.info(f"モジュール検出: {module_name}が利用可能です")
     else:
-        logger.warning(f"モジュール検出: {module_name}が利用できません")
+        # モジュールがない場合、インストール方法を表示
+        if module_name in MODULE_INSTALL_INSTRUCTIONS:
+            install_cmd = MODULE_INSTALL_INSTRUCTIONS[module_name]
+            logger.warning(f"モジュール検出: {module_name}が利用できません")
+            logger.warning(f"インストール方法: {install_cmd}")
+            
+            # Windows環境で特にseleniumモジュールがない場合は重要なエラーを表示
+            if is_windows() and module_name == 'selenium':
+                logger.error(f"Windows環境では{module_name}モジュールが必要です。以下のコマンドでインストールしてください:")
+                logger.error(f"  {install_cmd}")
+        else:
+            logger.warning(f"モジュール検出: {module_name}が利用できません")
     
     return result
+
+
+def get_installation_guide(module_name: str) -> str:
+    """指定したモジュールのインストール方法を返します
+    
+    Args:
+        module_name: モジュール名
+        
+    Returns:
+        str: インストール方法の説明文字列
+    """
+    if module_name in MODULE_INSTALL_INSTRUCTIONS:
+        return f"{module_name}モジュールのインストール方法: {MODULE_INSTALL_INSTRUCTIONS[module_name]}"
+    return f"{module_name}モジュールはパッケージマネージャー(pip)でインストールしてください"
 
 
 # 初期化時のログ記録
@@ -146,3 +178,9 @@ logger.info(f"プラットフォーム: {platform.system()} {platform.release()}
 if is_windows():
     if is_ms_store_python():
         logger.warning("Microsoft Store版Pythonが検出されました。一部機能が制限されます。")
+    
+    # Windowsでは必須のモジュールをチェック
+    if not is_module_available('selenium'):
+        logger.error("Windows環境で必要なseleniumモジュールがインストールされていません。")
+        logger.error("以下のコマンドを実行してモジュールをインストールしてください:")
+        logger.error("  pip install selenium")
