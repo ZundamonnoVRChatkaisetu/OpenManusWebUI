@@ -10,7 +10,7 @@ from app.agent.toolcall import ToolCallAgent
 from app.logger import logger
 from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.tool import Terminate, ToolCollection, BrowserUseTool
-from app.tool.file_saver import FileSaver, SaveFileParams
+from app.tool.file_saver import FileSaver, SaveFileParams, FileReader, FileList
 from app.tool.google_search import GoogleSearch
 from app.tool.python_execute import PythonExecute
 from app.utils.language_utils import Language, detect_language, get_template
@@ -25,6 +25,7 @@ from app.utils.file_templates import (
     generate_app_spec,
     generate_app_prototype
 )
+from app.config import config
 
 
 class EnhancedManus(Manus):
@@ -35,6 +36,7 @@ class EnhancedManus(Manus):
     - 思考プロセスと最終結果の区別
     - アプリ設計書やプロトタイプの自動生成
     - ファイル生成機能の強化
+    - ワークスペースを使用したファイル操作
     """
     
     name: str = "EnhancedManus"
@@ -54,6 +56,9 @@ class EnhancedManus(Manus):
     # 追加機能フラグ
     hide_thought_process: bool = True  # デフォルトで思考プロセスを非表示
     auto_generate_files: bool = True   # デフォルトでファイル自動生成を有効化
+    
+    # 現在のプロジェクト
+    current_project: Optional[str] = None
     
     async def run(self, prompt: str, **kwargs) -> str:
         """
@@ -76,6 +81,9 @@ class EnhancedManus(Manus):
         
         # 生成ファイルをリセット
         self.generated_files = []
+        
+        # current_projectを設定（configから取得）
+        self.current_project = config.workspace.current_project
         
         # 標準のrun処理を実行
         full_result = await super().run(prompt, **kwargs)
@@ -101,6 +109,19 @@ class EnhancedManus(Manus):
         # 思考ステップを記録
         self.thought_steps.append(f"ツール '{command.function.name}' を実行します...")
         
+        # ファイル操作ツールの場合、プロジェクト情報を追加
+        if command.function and command.function.name in ["file_saver", "file_reader", "file_list"]:
+            # 引数を取得
+            args = command.function.arguments or "{}"
+            args_dict = eval(args) if isinstance(args, str) else args
+            
+            # プロジェクト情報が指定されていない場合は現在のプロジェクトを設定
+            if "project" not in args_dict and self.current_project:
+                args_dict["project"] = self.current_project
+                
+                # 引数を更新
+                command.function.arguments = args_dict
+        
         # 標準のツール実行処理を呼び出し
         result = await super().execute_tool(command)
         
@@ -114,16 +135,22 @@ class EnhancedManus(Manus):
                 args_dict = eval(args) if isinstance(args, str) else args
                 file_path = args_dict.get("file_path", "")
                 content = args_dict.get("content", "")[:200]  # プレビュー用に先頭200文字
+                project = args_dict.get("project", self.current_project)
                 
-                self.generated_files.append({
+                # ファイル情報を保存
+                file_info = {
                     "filename": file_path,
-                    "content_preview": content
-                })
+                    "content_preview": content,
+                    "project": project
+                }
+                
+                self.generated_files.append(file_info)
                 
                 # 整形された結果を返す
                 formatted_result = format_file_generation_result(
                     filename=file_path,
                     content_preview=f"{content}...",
+                    project=project,
                     language=self.language
                 )
                 return formatted_result
@@ -194,24 +221,34 @@ class EnhancedManus(Manus):
                 spec_filename = f"{app_name.lower().replace(' ', '_')}_spec.md"
                 prototype_filename = f"{app_name.lower().replace(' ', '_')}_prototype.html"
                 
-                # FileSaverを使用してファイルを保存（言語パラメータを削除）
+                # FileSaverを使用してファイルを保存
                 await self.available_tools.execute(
                     name="file_saver",
-                    tool_input={"content": spec_content, "file_path": spec_filename}
+                    tool_input={
+                        "content": spec_content, 
+                        "file_path": spec_filename,
+                        "project": self.current_project
+                    }
                 )
                 await self.available_tools.execute(
                     name="file_saver",
-                    tool_input={"content": prototype_content, "file_path": prototype_filename}
+                    tool_input={
+                        "content": prototype_content, 
+                        "file_path": prototype_filename,
+                        "project": self.current_project
+                    }
                 )
                 
                 # 生成ファイルを記録
                 self.generated_files.append({
                     "filename": spec_filename,
-                    "content_preview": spec_content[:200]
+                    "content_preview": spec_content[:200],
+                    "project": self.current_project
                 })
                 self.generated_files.append({
                     "filename": prototype_filename,
-                    "content_preview": prototype_content[:200]
+                    "content_preview": prototype_content[:200],
+                    "project": self.current_project
                 })
                 
                 # 思考ステップに自動生成を記録
