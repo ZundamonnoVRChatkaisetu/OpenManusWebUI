@@ -47,6 +47,7 @@ def is_ms_store_python() -> bool:
     """現在の環境がMicrosoft Store版Pythonかどうかを確認します
     
     Microsoft Store版Pythonは一部のネイティブ機能に制限があります。
+    subprocessモジュールは使用せず、パスベースの安全な検出を行います。
     
     Returns:
         bool: Microsoft Store版Pythonの場合はTrue、それ以外はすべてFalse
@@ -62,31 +63,41 @@ def is_ms_store_python() -> bool:
         _is_ms_store_python = False
         return False
     
-    # Windows環境での判定処理
-    # 1. インストールパスに'WindowsApps'が含まれる場合
-    # 2. 特定のシステム制限がある場合
-    # 3. sys.prefixパスの特徴が一致する場合
-    
-    # パスチェック
+    # パスチェックによる安全な検出（subprocessを使用しない）
     python_path = sys.executable.lower()
     sys_prefix = sys.prefix.lower()
     
-    # WindowsAppsチェック
+    # WindowsAppsチェック - Microsoft Store版Pythonの特徴
     if 'windowsapps' in python_path or 'windowsapps' in sys_prefix:
         _is_ms_store_python = True
-        logger.warning("検出: Microsoft Store版Pythonが使用されています")
+        logger.warning("検出: Microsoft Store版Pythonが使用されています（パスにWindowsAppsが含まれる）")
         return True
     
-    # subprocess機能の制限をチェック
+    # 追加のMS Store特有のパス特性チェック
+    ms_store_paths = [
+        "localcache",
+        "packagecache", 
+        "microsoft.python", 
+        "pythonsoftwarefoundation.python"
+    ]
+    
+    for path_marker in ms_store_paths:
+        if path_marker in python_path or path_marker in sys_prefix:
+            _is_ms_store_python = True
+            logger.warning(f"検出: Microsoft Store版Pythonが使用されています（{path_marker}検出）")
+            return True
+    
+    # 書き込み制限のチェック（Microsoft Store版は特定のシステムディレクトリに書き込めない）
     try:
-        import subprocess
-        subprocess.Popen([sys.executable, '-c', 'print("test")'], 
-                         stdout=subprocess.PIPE,
-                         creationflags=0x08000000)
+        parent_dir = os.path.dirname(sys.executable)
+        test_file = os.path.join(parent_dir, '.ms_store_check')
+        with open(test_file, 'w') as f:
+            f.write('test')
+        os.remove(test_file)
         _is_ms_store_python = False
-    except (OSError, AttributeError, ValueError):
+    except (PermissionError, OSError):
         _is_ms_store_python = True
-        logger.warning("検出: subprocess制限からMicrosoft Store版Pythonと判定しました")
+        logger.warning("検出: Microsoft Store版Pythonが使用されています（書き込み制限を検出）")
         return True
     
     logger.info("Microsoft Store版Pythonではないと判定しました")
@@ -108,9 +119,9 @@ def is_module_available(module_name: str) -> bool:
     if module_name in _module_availability_cache:
         return _module_availability_cache[module_name]
     
-    # Windows環境では、playwrightは強制的に無効化
-    if is_windows() and module_name == 'playwright':
-        logger.warning("Windows環境ではPlaywrightは強制的に無効化されます")
+    # Windows環境では、playwright/subprocessは強制的に無効化
+    if is_windows() and module_name in ['playwright', 'subprocess']:
+        logger.warning(f"Windows環境では{module_name}は強制的に無効化されます")
         _module_availability_cache[module_name] = False
         return False
     
