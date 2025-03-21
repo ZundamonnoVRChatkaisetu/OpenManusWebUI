@@ -9,8 +9,21 @@ from typing import List, Optional, Dict, Any, Union
 from app.agent.manus import Manus
 from app.agent.base import BaseAgent as Agent
 from app.agent.enhanced_manus import EnhancedManus
-from app.llm.factory import create_llm_client
+from app.llm import LLM
 from app.web.database import get_project
+
+
+def create_llm_client(llm_vendor: str = "open-webui"):
+    """
+    LLMクライアントを生成する関数
+
+    Args:
+        llm_vendor: LLMベンダー名
+
+    Returns:
+        LLMクライアントのインスタンス
+    """
+    return LLM(config_name=llm_vendor)
 
 
 def create_agent(prompt: str, llm_vendor: str = "open-webui") -> Agent:
