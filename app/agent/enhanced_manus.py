@@ -27,6 +27,7 @@ from app.utils.file_templates import (
     generate_app_prototype
 )
 from app.config import config
+from app.web.thinking_tracker import ThinkingTracker
 
 
 class EnhancedManus(Manus):
@@ -65,6 +66,9 @@ class EnhancedManus(Manus):
     # 進捗管理関連の設定
     progress_tracking_enabled: bool = True  # 進捗管理を有効にする
     
+    # 現在のセッションID
+    session_id: Optional[str] = None
+    
     # ツールコレクションをオーバーライド（TaskProgressTrackerを含める）
     available_tools: ToolCollection = Field(
         default_factory=lambda: ToolCollection(
@@ -90,6 +94,10 @@ class EnhancedManus(Manus):
         Returns:
             処理結果
         """
+        # セッションIDを取得（渡されていれば）
+        if "session_id" in kwargs:
+            self.session_id = kwargs["session_id"]
+        
         # プロンプトから言語を検出（言語が明示的に設定されていない場合）
         if not self.language:
             self.language = detect_language(prompt)
@@ -178,6 +186,10 @@ class EnhancedManus(Manus):
                 
                 self.generated_files.append(file_info)
                 
+                # ThinkingTrackerにも通知（WebSocketで送信される）
+                if self.session_id:
+                    ThinkingTracker.add_file_generation(self.session_id, file_info)
+                
                 # 整形された結果を返す
                 formatted_result = format_file_generation_result(
                     filename=file_path,
@@ -195,7 +207,7 @@ class EnhancedManus(Manus):
             try:
                 # 結果からアプリ名と説明を抽出する試み
                 import re
-                app_name_match = re.search(r'app(?:\s+name)?[:\s]+([\"\']{0,1})([^\"\':\n]+)\1', result, re.IGNORECASE)
+                app_name_match = re.search(r'app(?:\s+name)?[:\s]+([\"\']?{0,1})([^\"\':]+)\1', result, re.IGNORECASE)
                 app_name = app_name_match.group(2) if app_name_match else "SampleApp"
                 
                 # 機能リストを抽出する試み
@@ -227,7 +239,7 @@ class EnhancedManus(Manus):
                     ]
                 
                 # アプリ説明を抽出する試み
-                description_match = re.search(r'description:?\s*([\"\']{0,1})([^\"\']+)\1', result, re.IGNORECASE)
+                description_match = re.search(r'description:?\s*([\"\']?{0,1})([^\"\']+)\1', result, re.IGNORECASE)
                 app_description = description_match.group(2) if description_match else "革新的なアプリケーション"
                 
                 # アプリ設計書を生成
@@ -282,6 +294,19 @@ class EnhancedManus(Manus):
                     "content_preview": prototype_content[:200],
                     "project": self.current_project
                 })
+                
+                # ThinkingTrackerにも通知
+                if self.session_id:
+                    ThinkingTracker.add_file_generation(self.session_id, {
+                        "filename": spec_filename,
+                        "content_preview": spec_content[:200],
+                        "project": self.current_project
+                    })
+                    ThinkingTracker.add_file_generation(self.session_id, {
+                        "filename": prototype_filename,
+                        "content_preview": prototype_content[:200],
+                        "project": self.current_project
+                    })
                 
                 # 思考ステップに自動生成を記録
                 self.thought_steps.append(f"アプリ '{app_name}' の設計書とプロトタイプを自動生成しました")
