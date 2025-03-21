@@ -230,15 +230,15 @@
     - 生成ファイルAPIとの連携強化
     - 既存のデータベース操作との互換性維持
 
-41. 🔄 **ChatGPT風UIとファイル表示機能の強化**（2025-03-22）
-    - ChatGPTを参考にしたUIデザインの変更
-    - AI思考プロセス表示UIの改良
-    - モデルが作成したファイルを表示するためのUI追加
-    - ファイル内容の表示・複製機能の強化
+41. ✅ **ChatGPT風UIとファイル表示機能の強化**（2025-03-21）
+    - ChatGPTを参考にしたUIデザインの変更（chatgpt_theme.css）
+    - AI思考プロセス表示UIの改良（thinking_process_visualizer.js）
+    - モデルが作成したファイルを表示するためのUI強化（enhanced_files_viewer.js）
+    - ファイル内容の表示・複製・検索・フィルター機能の強化
     - WebSocket通信でのファイル生成情報伝達機能の実装
-    - ユーザビリティの向上とレスポンシブデザインの改善
-    - デザイン構成を再調整して使いやすさを向上
-    - モデル生成ファイルの保存処理修正
+    - テーマ切り替え機能の実装によるUIカスタマイズ
+    - ビジュアルコンポーネントを統合するコントローラーの実装（model_visualization_controller.js）
+    - アバターを含むモダンなメッセージデザインの採用
 
 ## ディレクトリ構成と主要ファイルの役割
 
@@ -267,11 +267,13 @@ OpenManusWebUI/
 │       ├─ static/               # 静的ファイル
 │       │   ├─ css/              # スタイルシート
 │       │   │   ├─ visualizers.css   # 視覚化コンポーネントのスタイル
-│       │   │   └─ generated_files.css # 生成ファイル表示スタイル
+│       │   │   ├─ generated_files.css # 生成ファイル表示スタイル
+│       │   │   └─ chatgpt_theme.css # ChatGPT風UIのスタイル
 │       │   ├─ js/               # JavaScriptファイル
 │       │   │   ├─ thinking_process_visualizer.js  # 思考プロセス視覚化
 │       │   │   ├─ tool_usage_visualizer.js        # ツール使用状況視覚化
 │       │   │   ├─ model_visualization_controller.js # 視覚化コントローラー
+│       │   │   ├─ enhanced_files_viewer.js       # 強化版ファイルビューワー
 │       │   │   └─ generated_files_viewer.js       # 生成ファイル表示
 │       │   └─ images/           # 画像
 │       ├─ templates/            # HTMLテンプレート
@@ -299,8 +301,10 @@ OpenManusWebUI/
 - **app/web/static/style.css**: 基本スタイル
 - **app/web/static/css/visualizers.css**: 思考プロセス視覚化スタイル
 - **app/web/static/css/generated_files.css**: 生成ファイル表示スタイル
+- **app/web/static/css/chatgpt_theme.css**: ChatGPT風UIスタイル
 - **app/web/static/js/**: 視覚化コンポーネント各種
-- **app/web/static/js/generated_files_viewer.js**: 生成ファイル表示コンポーネント
+- **app/web/static/js/enhanced_files_viewer.js**: 強化版ファイルビューワー
+- **app/web/static/js/model_visualization_controller.js**: 視覚化コンポーネント統合
 
 #### 機能モジュール
 - **app/web/project_manager.js**: プロジェクト管理
@@ -323,6 +327,7 @@ OpenManusWebUI/
 - **app/tool/browser_backends/**: ブラウザ操作のバックエンド実装
 
 #### ユーティリティ
+- **app/utils/db.py**: データベースアクセスインターフェース
 - **app/utils/language_utils.py**: 言語検出
 - **app/utils/output_formatter.py**: 出力フォーマット
 - **app/web/thinking_tracker.py**: 思考プロセス管理
@@ -344,4 +349,4 @@ OpenManusWebUI/
 10. **指示追加**: 追加指示 → WebSocket通知 → バックエンド保存 → LLM通信時に統合 → ステータス更新
 11. **生成ファイル表示**: モデルファイル生成 → WebSocket通知 → UI表示 → ファイル操作
 
-この構造により、UIの変更と機能追加が適切に分離され、コンポーネント間の責任範囲が明確になっています。テンプレートシステムの適切な使用により、UIの見た目と動作ロジックが分離され、保守性が向上しています。また、複数の環境に対応する柔軟な実装により、異なるPython環境でも安定して動作するようになっています。Python構文規則の厳密な遵守により、異なるPythonバージョン間での互換性も確保されています。ワークスペース管理機能の追加により、プロジェクトごとのファイル分離と管理が可能になりました。会話ロール最適化機能によるLM Studio APIとの互換性向上と、精度低下対策メカニズムによる長時間の実行でも品質を維持する機能が実装されました。追加指示機能の通信フローを完全に修正し、処理中のモデルに確実に反映されるようになりました。モデルが生成したファイルの管理と表示機能を追加し、ユーザビリティが向上しました。データベースアクセスインターフェースを改善し、依存性注入パターンにより拡張性と保守性が向上しました。
+この構造により、UIの変更と機能追加が適切に分離され、コンポーネント間の責任範囲が明確になっています。テンプレートシステムの適切な使用により、UIの見た目と動作ロジックが分離され、保守性が向上しています。また、複数の環境に対応する柔軟な実装により、異なるPython環境でも安定して動作するようになっています。Python構文規則の厳密な遵守により、異なるPythonバージョン間での互換性も確保されています。ワークスペース管理機能の追加により、プロジェクトごとのファイル分離と管理が可能になりました。会話ロール最適化機能によるLM Studio APIとの互換性向上と、精度低下対策メカニズムによる長時間の実行でも品質を維持する機能が実装されました。追加指示機能の通信フローを完全に修正し、処理中のモデルに確実に反映されるようになりました。モデルが生成したファイルの管理と表示機能を強化し、ChatGPT風UIの導入でユーザビリティが大幅に向上しました。データベースアクセスインターフェースを改善し、依存性注入パターンにより拡張性と保守性が向上しました。
