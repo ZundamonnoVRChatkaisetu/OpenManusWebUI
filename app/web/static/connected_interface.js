@@ -353,6 +353,11 @@ class App {
 
             // 重置思考记录
             this.thinkingManager.clearThinking();
+            
+            // モデル生成ファイル表示をクリア
+            if (window.generatedFilesViewer) {
+                window.generatedFilesViewer.clearFiles();
+            }
 
         } catch (error) {
             console.error(t('send_message_error', { message: error.message }), error);
@@ -417,6 +422,16 @@ class App {
         if (data.chat_logs && data.chat_logs.length > 0) {
             console.log('收到聊天日志:', data.chat_logs);
         }
+        
+        // 処理生成されたファイル情報（追加）
+        if ((data.generated_files && data.generated_files.length > 0) || data.file_generation_event) {
+            console.log('生成ファイル情報を受信:', data.generated_files || data.file_generation_event);
+            
+            // ModelVisualizationControllerに生成ファイル情報を渡す
+            if (window.generatedFilesViewer) {
+                window.generatedFilesViewer.processWebSocketMessage(data);
+            }
+        }
 
         // 如果处理完成，刷新工作区文件
         if (data.status === 'completed') {
@@ -470,6 +485,21 @@ class App {
             
             // ファイル取得はworkspaceManagerに任せる
             await this.workspaceManager.loadWorkspaceFiles();
+            
+            // 生成されたファイル情報も更新（プロジェクトIDがある場合）
+            if (projectId && window.generatedFilesViewer) {
+                try {
+                    const response = await fetch(`/api/generated_files?project_id=${projectId}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.files && data.files.length > 0) {
+                            window.generatedFilesViewer.addFiles(data.files);
+                        }
+                    }
+                } catch (error) {
+                    console.error('生成ファイル情報の取得に失敗:', error);
+                }
+            }
         } catch (error) {
             console.error(t('load_workspace_error', { message: error.message }), error);
         }
@@ -478,7 +508,16 @@ class App {
     // 处理文件点击
     async handleFileClick(filePath) {
         try {
-            const response = await fetch(`/api/files/${encodeURIComponent(filePath)}`);
+            // プロジェクトIDを取得
+            const { projectId } = this.projectManager.getCurrentSession();
+            
+            // プロジェクトIDがある場合はAPIに渡す
+            let url = `/api/files/${encodeURIComponent(filePath)}`;
+            if (projectId) {
+                url += `?project=${encodeURIComponent(projectId)}`;
+            }
+            
+            const response = await fetch(url);
             if (!response.ok) {
                 throw new Error(t('api_error', { status: response.status }));
             }
