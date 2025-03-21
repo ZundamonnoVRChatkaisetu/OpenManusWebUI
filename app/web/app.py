@@ -41,6 +41,8 @@ import app.web.database as db
 
 # MCP関連ツールのインポート
 from app.web.tools.routes import router as tools_router
+# 生成ファイル取得APIルーターのインポート
+from app.web.routes.generated_files import router as generated_files_router
 
 # ロギング設定ミドルウェアのインポート
 from app.web.logging_config import configure_app_logging, setup_logging
@@ -57,6 +59,8 @@ configure_app_logging(app, min_duration_ms=1000)  # 1秒以上かかるリクエ
 
 # ツールAPIルーターの登録
 app.include_router(tools_router)
+# 生成ファイル取得APIルーターの登録
+app.include_router(generated_files_router)
 
 # 获取当前文件所在目录
 current_dir = Path(__file__).parent
@@ -571,6 +575,9 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
         last_log_count = 0
         last_thinking_step_count = 0
         last_tracker_log_count = 0  # 添加ThinkingTracker日志计数
+        
+        # 生成ファイル情報の追跡
+        last_generated_files_count = 0
 
         while session["status"] == "processing":
             await asyncio.sleep(0.2)  # 降低检查间隔提高实时性
@@ -632,6 +639,21 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     )
                 )
                 last_tracker_log_count = current_tracker_log_count
+                
+            # 生成されたファイル情報の更新を確認
+            if "generated_files" in session:
+                current_generated_files_count = len(session["generated_files"])
+                if current_generated_files_count > last_generated_files_count:
+                    # 生成されたファイル情報をフロントエンドに送信
+                    await websocket.send_text(
+                        json.dumps(
+                            {
+                                "status": session["status"],
+                                "generated_files": session["generated_files"],
+                            }
+                        )
+                    )
+                    last_generated_files_count = current_generated_files_count
 
             # 检查结果更新
             if session["result"]:
@@ -648,6 +670,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                             "logs": ThinkingTracker.get_logs(
                                 session_id, last_tracker_log_count
                             ),  # 添加ThinkingTracker日志
+                            "generated_files": session.get("generated_files", []),  # 添加生成されたファイル情報
                         }
                     )
                 )
@@ -668,6 +691,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                         "logs": ThinkingTracker.get_logs(
                             session_id, last_tracker_log_count
                         ),  # 添加ThinkingTracker日志
+                        "generated_files": session.get("generated_files", []),  # 添加生成されたファイル情報
                     }
                 )
             )
@@ -688,7 +712,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 from app.web.thinking_tracker import ThinkingTracker
 
 
-# 修改通信跟踪器的実装を改善
+# 修改通信跟踪器の実装を改善
 class LLMCommunicationTracker:
     """LLMとの通信を追跡し、追加指示を統合するトラッカー"""
 
@@ -1067,12 +1091,17 @@ async def get_latest_log():
 
 
 @app.get("/api/files/{file_path:path}")
-async def get_file_content(file_path: str):
-    """获取特定文件的内容"""
+async def get_file_content(file_path: str, project: Optional[str] = None):
+    """获取特定文件的内容 - プロジェクト名を指定可能"""
     # 安全检查，防止目录遍历攻击
     root_dir = Path(__file__).parent.parent.parent
-    full_path = root_dir / file_path
     
+    # プロジェクト指定がある場合、そのプロジェクトのディレクトリをルートとする
+    if project:
+        project_dir = PROJECT_WORKSPACE_ROOT / f"project_{project[:8]}"
+        if project_dir.exists():
+            root_dir = project_dir
+            
     # 注：file_pathが絶対パスの場合の対応
     if os.path.isabs(file_path):
         full_path = Path(file_path)
@@ -1102,6 +1131,7 @@ async def get_file_content(file_path: str):
             "path": file_path,
             "type": file_type,
             "content": content,
+            "project": project,  # プロジェクト情報も返す
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
@@ -1259,13 +1289,31 @@ async def process_prompt(session_id: str, prompt: str, project_id: Optional[str]
             
             # 生成されたファイルがあれば記録
             if hasattr(enhanced_agent, "generated_files") and enhanced_agent.generated_files:
+                # アクティブセッションに生成ファイルリストを格納
+                active_sessions[session_id]["generated_files"] = enhanced_agent.generated_files
+                
                 file_list = [f['filename'] for f in enhanced_agent.generated_files]
                 files_str = ", ".join(file_list)
                 ThinkingTracker.add_thinking_step(
                     session_id,
                     f"ワークスペース {workspace_dir.name} で{len(file_list)}個のファイルが生成されました: {files_str}"
                 )
-                active_sessions[session_id]["generated_files"] = file_list
+                
+                # WebSocketを通じてフロントエンドに通知するための情報も記録
+                for file_info in enhanced_agent.generated_files:
+                    # プロジェクト情報を追加
+                    if "project" not in file_info and project_id:
+                        file_info["project"] = project_id
+                    
+                    # タイムスタンプを追加
+                    if "timestamp" not in file_info:
+                        file_info["timestamp"] = datetime.now().isoformat()
+                    
+                    # ファイル生成イベントとしてフォーマット
+                    ThinkingTracker.add_thinking_step(
+                        session_id,
+                        f"ファイル生成: {file_info['filename']}"
+                    )
             
             # 记录完成情况
             log.info("処理完了")
