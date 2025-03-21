@@ -1,13 +1,16 @@
 import asyncio
+import re
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
-from typing import List, Literal, Optional
+from typing import Dict, List, Literal, Optional, Union, Any
+from pathlib import Path
 
 from pydantic import BaseModel, Field, model_validator
 
 from app.llm import LLM
 from app.logger import logger
 from app.schema import AgentState, Memory, Message
+from app.config import config
 
 
 class BaseAgent(BaseModel, ABC):
@@ -49,6 +52,14 @@ class BaseAgent(BaseModel, ABC):
     recent_tools_used: List[str] = Field(default_factory=list)  # 最近使用したツール
     accuracy_issues_detected: int = 0  # 検出された精度問題の数
     recovery_attempts: int = 0  # 回復試行の回数
+    
+    # 進捗管理のための追加フィールド
+    progress_tracking_enabled: bool = Field(default=True, description="進捗管理を有効にするかどうか")
+    progress_file_name: str = Field(default="task_progress.md", description="進捗管理ファイルの名前")
+    current_task_id: Optional[str] = Field(default=None, description="現在実行中のタスクID")
+    completed_tasks: List[str] = Field(default_factory=list, description="完了したタスクのIDリスト")
+    created_files: List[Dict[str, str]] = Field(default_factory=list, description="作成したファイルの情報")
+    progress_file_initialized: bool = Field(default=False, description="進捗ファイルが初期化されたかどうか")
 
     class Config:
         arbitrary_types_allowed = True
@@ -139,6 +150,15 @@ class BaseAgent(BaseModel, ABC):
 
         if request:
             self.update_memory("user", request)
+            
+            # 進捗管理ファイルの初期化（最初のユーザーリクエスト時に一度だけ）
+            if self.progress_tracking_enabled and not self.progress_file_initialized:
+                try:
+                    await self._initialize_progress_tracking()
+                    # 最初のタスクを追加（ユーザーの初期リクエスト）
+                    await self._add_task_to_progress_file("initial_request", f"初期リクエスト: {request[:50]}...")
+                except Exception as e:
+                    logger.error(f"Failed to initialize progress tracking: {e}")
 
         results: List[str] = []
         async with self.state_context(AgentState.RUNNING):
@@ -152,11 +172,59 @@ class BaseAgent(BaseModel, ABC):
                 self.current_step += 1
                 logger.info(f"Executing step {self.current_step}/{self.max_steps}")
                 
+                # 進捗管理ファイルを参照（次のステップに進む前に常に進捗を確認）
+                if self.progress_tracking_enabled and self.progress_file_initialized:
+                    try:
+                        progress_info = await self._read_progress_file()
+                        if progress_info and isinstance(progress_info, str):
+                            # 進捗情報を次のステップのプロンプトに追加
+                            progress_summary = self._extract_progress_summary(progress_info)
+                            if progress_summary:
+                                prompt_addition = f"\n\n## 現在の進捗状況\n{progress_summary}\n\n上記の進捗情報を参考にして、次のステップを計画し実行してください。"
+                                
+                                if self.next_step_prompt:
+                                    self.next_step_prompt += prompt_addition
+                                else:
+                                    self.next_step_prompt = prompt_addition
+                    except Exception as e:
+                        logger.error(f"Error reading progress file: {e}")
+                
                 # 精度低下の監視と対策（一定間隔で実行）
                 if self.automatic_recovery and self.current_step % self.accuracy_monitor_interval == 0:
                     await self._monitor_accuracy()
                 
                 step_result = await self.step()
+                
+                # ファイル作成/更新を検出して進捗管理ファイルに記録
+                if self.progress_tracking_enabled and self.progress_file_initialized:
+                    created_files = self._detect_file_operations(step_result)
+                    for file_info in created_files:
+                        try:
+                            await self._add_file_to_progress_file(
+                                file_info["path"], 
+                                file_info["role"], 
+                                self.current_task_id
+                            )
+                            self.created_files.append(file_info)
+                        except Exception as e:
+                            logger.error(f"Error recording file creation: {e}")
+                
+                # ツール実行を検出してタスク完了として記録
+                if self.progress_tracking_enabled and self.progress_file_initialized:
+                    if self._detect_task_completion(step_result) and self.current_task_id:
+                        try:
+                            await self._complete_task_in_progress_file(self.current_task_id)
+                            self.completed_tasks.append(self.current_task_id)
+                            
+                            # 次のタスクIDを自動生成
+                            next_task_id = f"task_{len(self.completed_tasks) + 1}"
+                            self.current_task_id = next_task_id
+                            
+                            # 次のタスクを追加
+                            description = f"ステップ {self.current_step} で検出されたタスク"
+                            await self._add_task_to_progress_file(next_task_id, description)
+                        except Exception as e:
+                            logger.error(f"Error updating task completion: {e}")
 
                 # Check for stuck state
                 if self.is_stuck():
@@ -294,6 +362,236 @@ class BaseAgent(BaseModel, ABC):
             
         self.recovery_attempts += 1
         logger.info(f"進捗要約を追加しました（{self.recovery_attempts}回目）")
+
+    async def _initialize_progress_tracking(self):
+        """進捗管理ファイルを初期化する"""
+        if not hasattr(self, "available_tools") or not self.available_tools:
+            logger.warning("Progress tracking initialization failed: available_tools not found")
+            return
+            
+        # タスク進捗追跡ツールが存在するか確認
+        tracker_exists = False
+        tracker_tool = None
+        for tool in self.available_tools:
+            if tool.name == "task_progress_tracker":
+                tracker_exists = True
+                tracker_tool = tool
+                break
+                
+        if not tracker_exists or not tracker_tool:
+            logger.warning("Progress tracking initialization failed: task_progress_tracker tool not found")
+            return
+            
+        # 進捗管理ファイルを作成
+        try:
+            project = config.workspace.current_project
+            result = await self.available_tools.execute(
+                name="task_progress_tracker",
+                tool_input={
+                    "action": "create",
+                    "project": project,
+                    "file_path": self.progress_file_name
+                }
+            )
+            
+            if "Error" in result:
+                logger.error(f"Failed to create progress file: {result}")
+                return
+                
+            self.progress_file_initialized = True
+            logger.info(f"Progress tracking initialized: {result}")
+            
+        except Exception as e:
+            logger.error(f"Error initializing progress tracking: {e}")
+    
+    async def _read_progress_file(self) -> str:
+        """進捗管理ファイルの内容を読み取る"""
+        if not hasattr(self, "available_tools") or not self.available_tools:
+            return ""
+            
+        try:
+            project = config.workspace.current_project
+            result = await self.available_tools.execute(
+                name="task_progress_tracker",
+                tool_input={
+                    "action": "read",
+                    "project": project,
+                    "file_path": self.progress_file_name
+                }
+            )
+            
+            if "Error" in result:
+                logger.error(f"Failed to read progress file: {result}")
+                return ""
+                
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error reading progress file: {e}")
+            return ""
+    
+    async def _add_task_to_progress_file(self, task_id: str, description: str):
+        """進捗管理ファイルに新しいタスクを追加する"""
+        if not hasattr(self, "available_tools") or not self.available_tools:
+            return
+            
+        try:
+            project = config.workspace.current_project
+            result = await self.available_tools.execute(
+                name="task_progress_tracker",
+                tool_input={
+                    "action": "add_task",
+                    "project": project,
+                    "file_path": self.progress_file_name,
+                    "task_id": task_id,
+                    "task_description": description
+                }
+            )
+            
+            if "Error" in result:
+                logger.error(f"Failed to add task to progress file: {result}")
+                return
+                
+            self.current_task_id = task_id
+            logger.info(f"Task added to progress file: {task_id}")
+            
+        except Exception as e:
+            logger.error(f"Error adding task to progress file: {e}")
+    
+    async def _complete_task_in_progress_file(self, task_id: str):
+        """進捗管理ファイルでタスクを完了としてマークする"""
+        if not hasattr(self, "available_tools") or not self.available_tools:
+            return
+            
+        try:
+            project = config.workspace.current_project
+            result = await self.available_tools.execute(
+                name="task_progress_tracker",
+                tool_input={
+                    "action": "complete_task",
+                    "project": project,
+                    "file_path": self.progress_file_name,
+                    "task_id": task_id
+                }
+            )
+            
+            if "Error" in result:
+                logger.error(f"Failed to complete task in progress file: {result}")
+                return
+                
+            logger.info(f"Task marked as completed in progress file: {task_id}")
+            
+        except Exception as e:
+            logger.error(f"Error completing task in progress file: {e}")
+    
+    async def _add_file_to_progress_file(self, file_path: str, file_role: str, related_task: Optional[str] = None):
+        """進捗管理ファイルに作成されたファイルを記録する"""
+        if not hasattr(self, "available_tools") or not self.available_tools:
+            return
+            
+        try:
+            project = config.workspace.current_project
+            result = await self.available_tools.execute(
+                name="task_progress_tracker",
+                tool_input={
+                    "action": "add_file",
+                    "project": project,
+                    "file_path": self.progress_file_name,
+                    "file_created": file_path,
+                    "file_role": file_role,
+                    "task_id": related_task
+                }
+            )
+            
+            if "Error" in result:
+                logger.error(f"Failed to add file to progress file: {result}")
+                return
+                
+            logger.info(f"File added to progress file: {file_path}")
+            
+        except Exception as e:
+            logger.error(f"Error adding file to progress file: {e}")
+    
+    def _extract_progress_summary(self, progress_content: str) -> str:
+        """進捗ファイルから要約情報を抽出する"""
+        summary_parts = []
+        
+        # 進捗概要を抽出
+        progress_section = re.search(r'## 進捗概要\s*\n((?:.+\n)+?)\s*\n##', progress_content)
+        if progress_section:
+            summary_parts.append("### 進捗概要\n" + progress_section.group(1))
+        
+        # 未完了タスクを抽出
+        tasks = []
+        for line in progress_content.split('\n'):
+            if '|' in line and '未完了' in line:
+                tasks.append(line)
+        
+        if tasks:
+            summary_parts.append("### 未完了タスク\n" + '\n'.join(tasks))
+        
+        # 直近の完了タスクを抽出
+        completed_tasks = []
+        for line in progress_content.split('\n'):
+            if '|' in line and '完了' in line:
+                completed_tasks.append(line)
+        
+        if completed_tasks:
+            # 最新の3つだけ表示
+            summary_parts.append("### 最近完了したタスク\n" + '\n'.join(completed_tasks[-3:]))
+        
+        # 作成されたファイルを抽出 (最新の5つまで)
+        files_section = re.search(r'## 作成/更新されたファイル\s*\n\|[^\n]+\|\s*\n\|[^\n]+\|\s*\n((?:\|[^\n]+\|\s*\n)+)', progress_content)
+        if files_section:
+            file_lines = files_section.group(1).strip().split('\n')
+            file_lines = file_lines[-5:] if len(file_lines) > 5 else file_lines
+            summary_parts.append("### 作成/更新ファイル\n" + '\n'.join(file_lines))
+        
+        return '\n\n'.join(summary_parts)
+    
+    def _detect_file_operations(self, step_result: str) -> List[Dict[str, str]]:
+        """ステップの結果からファイル作成/更新操作を検出する"""
+        files = []
+        
+        # ファイル保存成功メッセージを検出
+        file_saved_matches = re.findall(r"Content successfully saved to ([^\s]+) in workspace", step_result)
+        for file_path in file_saved_matches:
+            files.append({
+                "path": file_path,
+                "role": "ステップ中に作成されたファイル"
+            })
+        
+        # ファイル生成成功メッセージの別の形式を検出
+        file_generated_matches = re.findall(r"ファイル '([^']+)' を([^.]+)しました", step_result)
+        for file_match in file_generated_matches:
+            files.append({
+                "path": file_match[0],
+                "role": f"{file_match[1]}されたファイル"
+            })
+        
+        return files
+    
+    def _detect_task_completion(self, step_result: str) -> bool:
+        """ステップの結果からタスク完了の兆候を検出する"""
+        # タスク完了を示す可能性のあるパターン
+        completion_patterns = [
+            r"完了しました",
+            r"successfully completed",
+            r"implementation complete",
+            r"task finished",
+            r"実装が終了しました",
+            r"完成しました"
+        ]
+        
+        for pattern in completion_patterns:
+            if re.search(pattern, step_result, re.IGNORECASE):
+                return True
+        
+        # ツール呼び出しの成功が複数回ある場合も完了と見なす
+        if step_result.count("successfully") >= 2 or step_result.count("成功") >= 2:
+            return True
+            
+        return False
 
     @property
     def messages(self) -> List[Message]:
