@@ -196,7 +196,13 @@
     - 思考ステップへの指示反映ステータス追加
     - 追加指示をユーザーメッセージとして適切に追加
 
-36. 🔄 **ChatGPT風UIとファイル表示機能の強化**（2025-03-22）
+36. ✅ **Agent importエラーの修正**（2025-03-21）
+    - app.agent.base から Agent クラスをインポートできないエラーの修正
+    - enhanced_agent_factory.py ファイルのインポート文を修正
+    - `from app.agent.base import Agent` を `from app.agent.base import BaseAgent as Agent` に変更
+    - モジュール間の一貫性を保持
+
+37. 🔄 **ChatGPT風UIとファイル表示機能の強化**（2025-03-22）
     - ChatGPTを参考にしたUIデザインの変更
     - AI思考プロセス表示UIの改良
     - モデルが作成したファイルを表示するためのUI追加
