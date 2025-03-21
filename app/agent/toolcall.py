@@ -31,12 +31,28 @@ class ToolCallAgent(ReActAgent):
     tool_calls: List[ToolCall] = Field(default_factory=list)
 
     max_steps: int = 100  # max_stepsを30から100に増加
+    
+    # 思考プロセスの精度向上のためのパラメータ
+    step_review_interval: int = 5  # 何ステップごとに進捗を確認するか
+    adaptive_planning: bool = True  # 状況に応じて計画を調整するか
+    verbose_thinking: bool = True   # 詳細な思考ログを出力するか
 
     async def think(self) -> bool:
         """Process current state and decide next actions using tools"""
+        # ステップに応じた自己評価と計画調整
+        if self.adaptive_planning and self.current_step > 0 and self.current_step % self.step_review_interval == 0:
+            await self._review_progress()
+        
+        # 次のステップのプロンプトを設定
         if self.next_step_prompt:
-            user_msg = Message.user_message(self.next_step_prompt)
+            # 長いプロンプトの場合は最適化（重要な指示を保持）
+            effective_prompt = self._optimize_next_step_prompt() if len(self.next_step_prompt) > 500 else self.next_step_prompt
+            user_msg = Message.user_message(effective_prompt)
             self.messages += [user_msg]
+
+        # 思考ステップのログ記録
+        if self.verbose_thinking:
+            logger.info(f"💭 Step {self.current_step}: 思考開始 - コンテキスト長約{self._estimate_context_length()}文字")
 
         # Get response with tool options
         response = await self.llm.ask_tool(
@@ -109,9 +125,13 @@ class ToolCallAgent(ReActAgent):
 
         results = []
         for command in self.tool_calls:
+            # ツール実行前のログ記録（詳細モード）
+            if self.verbose_thinking:
+                logger.info(f"🔧 ツール '{command.function.name}' の実行を開始します...")
+                
             result = await self.execute_tool(command)
             logger.info(
-                f"🎯 Tool '{command.function.name}' completed its mission! Result: {result}"
+                f"🎯 Tool '{command.function.name}' completed its mission! Result: {result[:100]}..." if len(result) > 100 else result
             )
 
             # Add tool response to memory
@@ -120,6 +140,12 @@ class ToolCallAgent(ReActAgent):
             )
             self.memory.add_message(tool_msg)
             results.append(result)
+
+        # 各実行ステップ後のメモリ状態を確認
+        if self.verbose_thinking:
+            msg_count = len(self.memory.messages)
+            ctx_len = self._estimate_context_length()
+            logger.info(f"📊 実行後のメモリ状態: {msg_count}メッセージ, 約{ctx_len}文字")
 
         return "\n\n".join(results)
 
@@ -180,3 +206,124 @@ class ToolCallAgent(ReActAgent):
     def _is_special_tool(self, name: str) -> bool:
         """Check if tool name is in special tools list"""
         return name.lower() in [n.lower() for n in self.special_tool_names]
+    
+    async def _review_progress(self) -> None:
+        """定期的な進捗確認と戦略の調整"""
+        logger.info(f"📝 ステップ{self.current_step}: 進捗確認と戦略の調整")
+        
+        # 進捗の要約
+        summary = f"現在、ステップ{self.current_step}/{self.max_steps}を実行中です。"
+        
+        # 現在のメモリ状態を分析
+        memory_analysis = self._analyze_memory_state()
+        
+        # 次のステップのプロンプトに追加する進捗確認情報
+        progress_note = f"\n\n# 進捗確認（ステップ{self.current_step}）\n{summary}\n{memory_analysis}\n\n"
+        
+        # 根本的な問題解決に焦点を当てる指示を追加
+        focus_instruction = "これまでの進捗を踏まえ、問題の根本的な解決に焦点を当ててください。"
+        
+        # next_step_promptがある場合は末尾に追加、ない場合は新たに設定
+        if self.next_step_prompt:
+            self.next_step_prompt += progress_note + focus_instruction
+        else:
+            self.next_step_prompt = progress_note + focus_instruction
+    
+    def _analyze_memory_state(self) -> str:
+        """メモリの状態を分析し、適切な戦略調整のための情報を提供"""
+        # メッセージの総数
+        msg_count = len(self.memory.messages)
+        
+        # ユーザーの最新の指示を取得
+        last_user_msg = None
+        for msg in reversed(self.memory.messages):
+            if msg.role == "user":
+                last_user_msg = msg.content
+                break
+        
+        # 実行済みのツールを集計
+        tool_usage = {}
+        for msg in self.memory.messages:
+            if msg.role == "tool" and msg.name:
+                tool_usage[msg.name] = tool_usage.get(msg.name, 0) + 1
+        
+        # 分析結果の構築
+        analysis = [
+            f"- 会話履歴: {msg_count}メッセージ",
+            f"- 推定コンテキスト長: 約{self._estimate_context_length()}文字"
+        ]
+        
+        if tool_usage:
+            tools_str = ", ".join([f"{name}({count}回)" for name, count in tool_usage.items()])
+            analysis.append(f"- 使用ツール: {tools_str}")
+        
+        if last_user_msg:
+            # 長すぎる場合は要約
+            if len(last_user_msg) > 100:
+                last_user_msg = last_user_msg[:100] + "..."
+            analysis.append(f"- 最新の指示: {last_user_msg}")
+        
+        return "\n".join(analysis)
+    
+    def _optimize_next_step_prompt(self) -> str:
+        """長いnext_step_promptを最適化して重要な部分を保持"""
+        if not self.next_step_prompt or len(self.next_step_prompt) <= 500:
+            return self.next_step_prompt
+        
+        # プロンプトの構造を分析
+        prompt = self.next_step_prompt
+        
+        # 重要な指示を検出（先頭部分と#または*で始まる行を保持）
+        lines = prompt.split("\n")
+        important_lines = []
+        
+        # 先頭の数行は常に保持
+        header_lines = min(3, len(lines) // 4)
+        important_lines.extend(lines[:header_lines])
+        
+        # 重要な指示（#または*で始まる行）を検出
+        for line in lines[header_lines:]:
+            stripped = line.strip()
+            if stripped.startswith(("#", "*", "-", "1.", "2.", "3.", ">")):
+                important_lines.append(line)
+            elif "注意" in line or "重要" in line or "必須" in line:
+                important_lines.append(line)
+        
+        # 末尾の指示も重要であることが多いので保持
+        if len(lines) > header_lines + len(important_lines):
+            footer_lines = min(3, len(lines) // 5)
+            important_lines.extend(lines[-footer_lines:])
+        
+        # 最適化されたプロンプトを構築
+        if len(important_lines) < len(lines) // 2:
+            optimized = "\n".join(important_lines)
+            # 重要部分の間に省略があることを示す
+            if header_lines > 0 and len(important_lines) > header_lines:
+                header = "\n".join(important_lines[:header_lines])
+                rest = "\n".join(important_lines[header_lines:])
+                optimized = f"{header}\n...(中略)...\n{rest}"
+            return optimized
+        
+        # 十分な最適化ができない場合は元のプロンプトを返す
+        return prompt
+    
+    def _estimate_context_length(self) -> int:
+        """会話履歴のおおよそのコンテキスト長（文字数）を推定"""
+        total_chars = 0
+        for msg in self.memory.messages:
+            # content部分の長さ
+            if msg.content:
+                total_chars += len(msg.content)
+            
+            # tool_calls部分の長さを推定
+            if msg.tool_calls:
+                for call in msg.tool_calls:
+                    # function.nameとargumentsの長さを加算
+                    total_chars += len(call.function.name) + len(call.function.arguments or "")
+                    # その他のメタデータの長さも考慮
+                    total_chars += 50  # id, typeなどを含む概算
+            
+            # ロールや名前などのメタデータ分も加算
+            total_chars += 20  # 役割や名前のための追加文字数
+        
+        return total_chars
