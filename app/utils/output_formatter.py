@@ -115,6 +115,7 @@ def format_tool_result(
 def format_file_generation_result(
     filename: str,
     content_preview: Optional[str] = None,
+    project: Optional[str] = None,
     language: Optional[Language] = None
 ) -> str:
     """
@@ -123,6 +124,7 @@ def format_file_generation_result(
     Args:
         filename: 生成されたファイル名
         content_preview: ファイル内容のプレビュー（省略可）
+        project: ファイルが保存されたプロジェクト名（省略可）
         language: 使用言語
         
     Returns:
@@ -139,11 +141,22 @@ def format_file_generation_result(
     # テンプレートを使用して結果を整形
     result = get_template("file_generation", language, filename=filename)
     
+    # プロジェクト情報がある場合は追加
+    if project:
+        result += f" (プロジェクト: {project})"
+    
     # プレビューがある場合は追加
     if content_preview:
         # ファイルの種類に基づいてプレビューをフォーマット
-        if filename.endswith((".py", ".js", ".html", ".css", ".json")):
-            result += f"\n\n```\n{content_preview}\n```"
+        file_ext = filename.lower().split('.')[-1] if '.' in filename else ''
+        
+        # コード形式のファイル
+        if file_ext in ['py', 'js', 'html', 'css', 'json', 'ts', 'jsx', 'tsx', 'java', 'c', 'cpp', 'cs', 'go', 'rs', 'rb', 'php', 'sh']:
+            result += f"\n\n```{file_ext}\n{content_preview}\n```"
+        # マークダウンファイル
+        elif file_ext == 'md':
+            result += f"\n\n```markdown\n{content_preview}\n```"
+        # その他のテキストファイル
         else:
             result += f"\n\n{content_preview}"
     
