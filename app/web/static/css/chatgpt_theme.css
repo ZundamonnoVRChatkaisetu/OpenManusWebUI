@@ -1,0 +1,595 @@
+/**
+ * chatgpt_theme.css
+ * ChatGPT風UIテーマのスタイル定義
+ */
+
+/* ChatGPTテーマの基本カラー */
+.chatgpt-theme {
+    --primary-color: #10a37f;
+    --secondary-color: #202123;
+    --accent-color: #19c37d;
+    --success-color: #10a37f;
+    --error-color: #ef4146;
+    --warning-color: #f5a623;
+    --info-color: #3f7de8;
+    --background-color: #f7f7f8;
+    --sidebar-bg: #202123;
+    --chat-bg: #ffffff;
+    --border-color: #e5e7eb;
+    --text-color: #374151;
+    --text-secondary: #6b7280;
+    --text-light: #d1d5db;
+}
+
+/* レイアウト調整 */
+.chatgpt-theme .container {
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
+    background-color: var(--background-color);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.chatgpt-theme main {
+    flex: 1;
+    overflow: hidden;
+}
+
+.chatgpt-theme .app-container {
+    display: flex;
+    height: 100%;
+}
+
+/* サイドバー */
+.chatgpt-theme .sidebar {
+    background-color: var(--sidebar-bg);
+    color: var(--text-light);
+    width: 260px;
+    height: 100%;
+    overflow-y: auto;
+    padding: 0;
+    border-right: none;
+}
+
+.chatgpt-theme .sidebar-section {
+    padding: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.chatgpt-theme .sidebar-section h3 {
+    color: var(--text-light);
+    font-size: 14px;
+    margin-bottom: 12px;
+    font-weight: 500;
+}
+
+.chatgpt-theme .project-list,
+.chatgpt-theme .session-list {
+    margin-bottom: 12px;
+}
+
+.chatgpt-theme .project-item,
+.chatgpt-theme .session-item {
+    padding: 8px 12px;
+    margin-bottom: 4px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s ease;
+}
+
+.chatgpt-theme .project-item:hover,
+.chatgpt-theme .session-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.chatgpt-theme .project-item.active,
+.chatgpt-theme .session-item.active {
+    background-color: rgba(255, 255, 255, 0.2);
+    font-weight: 500;
+}
+
+.chatgpt-theme .sidebar-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.chatgpt-theme .sidebar-buttons button {
+    flex: 1;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: var(--text-light);
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.chatgpt-theme .sidebar-buttons button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.chatgpt-theme .btn-primary {
+    background-color: rgba(16, 163, 127, 0.7) !important;
+}
+
+.chatgpt-theme .btn-primary:hover {
+    background-color: rgba(16, 163, 127, 0.9) !important;
+}
+
+.chatgpt-theme .btn-danger {
+    background-color: rgba(239, 65, 70, 0.7) !important;
+}
+
+.chatgpt-theme .btn-danger:hover {
+    background-color: rgba(239, 65, 70, 0.9) !important;
+}
+
+/* メインコンテンツ */
+.chatgpt-theme .main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.chatgpt-theme .project-details-panel {
+    background-color: var(--chat-bg);
+    border-bottom: 1px solid var(--border-color);
+    padding: 16px;
+}
+
+.chatgpt-theme .project-details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.chatgpt-theme .project-details-header h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.chatgpt-theme .project-name-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    margin-bottom: 12px;
+    font-size: 14px;
+}
+
+.chatgpt-theme .project-instructions-textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    height: 100px;
+    resize: vertical;
+    font-size: 14px;
+}
+
+.chatgpt-theme .session-info {
+    background-color: var(--chat-bg);
+    border-bottom: 1px solid var(--border-color);
+    padding: 12px 16px;
+}
+
+.chatgpt-theme .session-title-display {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+/* パネルコンテナ */
+.chatgpt-theme .panel-container {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.chatgpt-theme .left-panel {
+    width: 300px;
+    background-color: var(--background-color);
+    border-right: 1px solid var(--border-color);
+    overflow-y: auto;
+    padding: 16px;
+}
+
+.chatgpt-theme .left-panel h2 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 16px;
+}
+
+.chatgpt-theme .right-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--chat-bg);
+    overflow: hidden;
+}
+
+.chatgpt-theme .right-panel h2 {
+    display: none; /* ChatGPTではメインエリアのタイトルは表示しない */
+}
+
+/* チャットメッセージ */
+.chatgpt-theme .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+}
+
+.chatgpt-theme .message {
+    padding: 16px;
+    margin: 0;
+    border-radius: 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.chatgpt-theme .user-message {
+    background-color: var(--background-color);
+}
+
+.chatgpt-theme .ai-message {
+    background-color: var(--chat-bg);
+}
+
+.chatgpt-theme .system-message {
+    background-color: rgba(59, 130, 246, 0.1);
+    padding: 8px 16px;
+    font-size: 13px;
+    color: #3b82f6;
+}
+
+.chatgpt-theme .message-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    margin-right: 12px;
+    background-color: #10a37f;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.chatgpt-theme .user-message .message-avatar {
+    background-color: #3b82f6;
+}
+
+.chatgpt-theme .message-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.chatgpt-theme .message-role {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.chatgpt-theme .message-content {
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.chatgpt-theme .message-content pre {
+    background-color: rgba(0, 0, 0, 0.05);
+    padding: 12px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 12px 0;
+}
+
+.chatgpt-theme .message-content code {
+    background-color: rgba(0, 0, 0, 0.05);
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+
+/* 入力エリア */
+.chatgpt-theme .input-area {
+    border-top: 1px solid var(--border-color);
+    padding: 16px;
+    background-color: var(--chat-bg);
+    position: relative;
+}
+
+.chatgpt-theme #user-input {
+    width: 100%;
+    min-height: 50px;
+    max-height: 200px;
+    padding: 12px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    resize: vertical;
+    font-size: 15px;
+    line-height: 1.5;
+    background-color: var(--chat-bg);
+    color: var(--text-color);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.chatgpt-theme .button-group {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    justify-content: flex-end;
+}
+
+.chatgpt-theme .btn-send {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.chatgpt-theme .btn-send:hover:not(:disabled) {
+    background-color: var(--accent-color);
+}
+
+.chatgpt-theme .btn-send:disabled {
+    background-color: #d1d5db;
+    cursor: not-allowed;
+}
+
+.chatgpt-theme .btn-stop,
+.chatgpt-theme .btn-clear {
+    background-color: var(--background-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.chatgpt-theme .btn-stop:hover:not(:disabled),
+.chatgpt-theme .btn-clear:hover {
+    background-color: #e5e7eb;
+}
+
+.chatgpt-theme .btn-stop:disabled {
+    color: #9ca3af;
+    cursor: not-allowed;
+}
+
+.chatgpt-theme .status-indicator {
+    position: absolute;
+    top: 8px;
+    left: 16px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* 思考プロセス・ファイル表示関連 */
+.chatgpt-theme .thinking-section {
+    background-color: white;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.chatgpt-theme .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.chatgpt-theme .section-header h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.chatgpt-theme .record-count {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.chatgpt-theme .controls {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.chatgpt-theme .auto-scroll {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.chatgpt-theme .thinking-timeline {
+    max-height: 200px;
+    overflow-y: auto;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.chatgpt-theme .thinking-step {
+    padding: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.chatgpt-theme .thinking-step-time {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.chatgpt-theme .thinking-step-message {
+    font-size: 13px;
+    color: var(--text-color);
+}
+
+.chatgpt-theme .workspace-section {
+    background-color: white;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.chatgpt-theme .refresh-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.chatgpt-theme .workspace-files {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+/* 生成ファイル表示コンポーネント */
+.chatgpt-theme .generated-files-container {
+    background-color: white;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.chatgpt-theme .generated-files-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background-color: rgba(16, 163, 127, 0.05);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.chatgpt-theme .generated-files-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.chatgpt-theme .generated-files-list {
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.chatgpt-theme .generated-file-item {
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color 0.2s ease;
+    cursor: pointer;
+}
+
+.chatgpt-theme .generated-file-item:hover {
+    background-color: rgba(16, 163, 127, 0.05);
+}
+
+.chatgpt-theme .generated-file-info {
+    flex: 1;
+}
+
+.chatgpt-theme .generated-file-preview {
+    background-color: #f8fafc;
+    border-top: 1px solid var(--border-color);
+    padding: 16px;
+    max-height: 200px;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* ファイルビューワー */
+.chatgpt-theme .file-viewer {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+    max-width: 900px;
+    max-height: 80vh;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    display: none;
+    flex-direction: column;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+.chatgpt-theme .file-viewer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.chatgpt-theme .file-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    margin: 0;
+    white-space: pre-wrap;
+    font-family: monospace;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* レスポンシブデザイン */
+@media (max-width: 992px) {
+    .chatgpt-theme .sidebar {
+        width: 240px;
+    }
+    
+    .chatgpt-theme .left-panel {
+        width: 280px;
+    }
+}
+
+@media (max-width: 768px) {
+    .chatgpt-theme .app-container {
+        flex-direction: column;
+    }
+    
+    .chatgpt-theme .sidebar {
+        width: 100%;
+        height: auto;
+        max-height: 300px;
+    }
+    
+    .chatgpt-theme .panel-container {
+        flex-direction: column;
+    }
+    
+    .chatgpt-theme .left-panel {
+        width: 100%;
+        height: auto;
+        max-height: 300px;
+    }
+}
