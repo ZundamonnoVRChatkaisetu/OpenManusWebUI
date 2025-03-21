@@ -6,6 +6,7 @@
     <title>OpenManus Web</title>
     <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', path='/css/visualizers.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/generated_files.css') }}">
     <style>
         /* 追加のインラインスタイル - ManusのUIに近づけるための調整 */
         :root {
@@ -59,6 +60,11 @@
             margin-bottom: 20px;
         }
         
+        /* モデル作成ファイル表示エリア */
+        #generated-files-container {
+            margin-bottom: 20px;
+        }
+        
         /* AI操作表示エリア */
         .ai-operation-area {
             margin-top: 20px;
@@ -90,6 +96,32 @@
         .indicator-text {
             font-size: 0.9rem;
             color: var(--text-color);
+        }
+        
+        /* ChatGPT風UIのスタイル（オプション） */
+        .chatgpt-theme .left-panel {
+            background-color: #f7f7f8;
+            border-right: 1px solid #e5e7eb;
+        }
+        
+        .chatgpt-theme .right-panel {
+            background-color: #ffffff;
+        }
+        
+        .chatgpt-theme .chat-messages {
+            background-color: #ffffff;
+        }
+        
+        .chatgpt-theme .user-message {
+            background-color: #f7f7f8;
+            border-radius: 0;
+        }
+        
+        .chatgpt-theme .ai-message {
+            background-color: #ffffff;
+            border-top: 1px solid #e5e7eb;
+            border-bottom: 1px solid #e5e7eb;
+            border-radius: 0;
         }
     </style>
 </head>
@@ -168,6 +200,9 @@
                             
                             <!-- 追加: ツール使用状況表示エリア -->
                             <div id="tool-usage-container" class="tool-usage-container"></div>
+                            
+                            <!-- 追加: モデル作成ファイル表示エリア -->
+                            <div id="generated-files-container" class="generated-files-container"></div>
 
                             <div class="thinking-section">
                                 <div class="section-header">
@@ -252,6 +287,9 @@
     
     <!-- 追加: ツール使用状況視覚化コンポーネント -->
     <script src="{{ url_for('static', path='/js/tool_usage_visualizer.js') }}"></script>
+    
+    <!-- 追加: 生成ファイル表示コンポーネント -->
+    <script src="{{ url_for('static', path='/js/generated_files_viewer.js') }}"></script>
     
     <!-- 追加: 視覚化コントローラー -->
     <script src="{{ url_for('static', path='/js/model_visualization_controller.js') }}"></script>
