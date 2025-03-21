@@ -641,19 +641,19 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 last_tracker_log_count = current_tracker_log_count
                 
             # 生成されたファイル情報の更新を確認
-            if "generated_files" in session:
-                current_generated_files_count = len(session["generated_files"])
-                if current_generated_files_count > last_generated_files_count:
-                    # 生成されたファイル情報をフロントエンドに送信
-                    await websocket.send_text(
-                        json.dumps(
-                            {
-                                "status": session["status"],
-                                "generated_files": session["generated_files"],
-                            }
-                        )
+            generated_files = ThinkingTracker.get_generated_files(session_id)
+            current_generated_files_count = len(generated_files)
+            if current_generated_files_count > last_generated_files_count:
+                # 生成されたファイル情報をフロントエンドに送信
+                await websocket.send_text(
+                    json.dumps(
+                        {
+                            "status": session["status"],
+                            "generated_files": generated_files[last_generated_files_count:],
+                        }
                     )
-                    last_generated_files_count = current_generated_files_count
+                )
+                last_generated_files_count = current_generated_files_count
 
             # 检查结果更新
             if session["result"]:
@@ -670,7 +670,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                             "logs": ThinkingTracker.get_logs(
                                 session_id, last_tracker_log_count
                             ),  # 添加ThinkingTracker日志
-                            "generated_files": session.get("generated_files", []),  # 添加生成されたファイル情報
+                            "generated_files": ThinkingTracker.get_generated_files(session_id),  # 添加生成されたファイル情報
                         }
                     )
                 )
@@ -691,7 +691,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                         "logs": ThinkingTracker.get_logs(
                             session_id, last_tracker_log_count
                         ),  # 添加ThinkingTracker日志
-                        "generated_files": session.get("generated_files", []),  # 添加生成されたファイル情報
+                        "generated_files": ThinkingTracker.get_generated_files(session_id),  # 添加生成されたファイル情報
                     }
                 )
             )
@@ -1234,7 +1234,11 @@ async def process_prompt(session_id: str, prompt: str, project_id: Optional[str]
                 os.environ["ENHANCED_MANUS_LANGUAGE"] = detected_language
             
             # ====== EnhancedManusを使用して処理 ======
-            enhanced_agent = create_enhanced_agent(prompt)
+            enhanced_agent = create_enhanced_agent(
+                prompt,
+                session_id=session_id,  # セッションIDを明示的に渡す
+                project_id=project_id   # プロジェクトIDも渡す
+            )
             
             # コミュニケーショントラッカーをインストール
             comm_tracker = LLMCommunicationTracker(session_id, enhanced_agent)
@@ -1289,31 +1293,13 @@ async def process_prompt(session_id: str, prompt: str, project_id: Optional[str]
             
             # 生成されたファイルがあれば記録
             if hasattr(enhanced_agent, "generated_files") and enhanced_agent.generated_files:
-                # アクティブセッションに生成ファイルリストを格納
-                active_sessions[session_id]["generated_files"] = enhanced_agent.generated_files
-                
                 file_list = [f['filename'] for f in enhanced_agent.generated_files]
                 files_str = ", ".join(file_list)
                 ThinkingTracker.add_thinking_step(
                     session_id,
                     f"ワークスペース {workspace_dir.name} で{len(file_list)}個のファイルが生成されました: {files_str}"
                 )
-                
-                # WebSocketを通じてフロントエンドに通知するための情報も記録
-                for file_info in enhanced_agent.generated_files:
-                    # プロジェクト情報を追加
-                    if "project" not in file_info and project_id:
-                        file_info["project"] = project_id
-                    
-                    # タイムスタンプを追加
-                    if "timestamp" not in file_info:
-                        file_info["timestamp"] = datetime.now().isoformat()
-                    
-                    # ファイル生成イベントとしてフォーマット
-                    ThinkingTracker.add_thinking_step(
-                        session_id,
-                        f"ファイル生成: {file_info['filename']}"
-                    )
+                active_sessions[session_id]["generated_files"] = file_list
             
             # 记录完成情况
             log.info("処理完了")
