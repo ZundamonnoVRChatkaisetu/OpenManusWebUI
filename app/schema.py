@@ -113,14 +113,36 @@ class Memory(BaseModel):
 
     def add_message(self, message: Message) -> None:
         """Add a message to memory"""
-        self.messages.append(message)
-        # Optional: Implement message limit
+        # LM Studio対応: 連続した同じロールのメッセージを防止する
+        if len(self.messages) > 0 and self.messages[-1].role == message.role:
+            # 内容が空でなければ、前のメッセージの内容を更新する
+            if message.content:
+                # 前のメッセージに内容を追加する
+                if self.messages[-1].content:
+                    self.messages[-1].content += "\n" + message.content
+                else:
+                    self.messages[-1].content = message.content
+            
+            # tool_callsが存在する場合、前のメッセージのtool_callsを更新
+            if message.tool_calls:
+                if self.messages[-1].tool_calls:
+                    # 既存のtool_callsとマージする
+                    self.messages[-1].tool_calls.extend(message.tool_calls)
+                else:
+                    self.messages[-1].tool_calls = message.tool_calls
+        else:
+            # 異なるロールの場合は通常通り追加
+            self.messages.append(message)
+        
+        # メッセージ数の制限を適用
         if len(self.messages) > self.max_messages:
-            self.messages = self.messages[-self.max_messages :]
+            self.messages = self.messages[-self.max_messages:]
 
     def add_messages(self, messages: List[Message]) -> None:
         """Add multiple messages to memory"""
-        self.messages.extend(messages)
+        # メッセージを1つずつ追加して、ロールの交互配置を確保
+        for message in messages:
+            self.add_message(message)
 
     def clear(self) -> None:
         """Clear all messages"""
