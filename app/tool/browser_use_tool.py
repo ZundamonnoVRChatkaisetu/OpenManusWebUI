@@ -493,21 +493,24 @@ class BrowserUseTool(BaseTool):
 
     def __del__(self):
         """オブジェクト破棄時のクリーンアップ"""
+        # 以前の実装ではイベントループが実行中の場合でも非同期クリーンアップを試みていたが、
+        # これはエラーの原因となる可能性がある。イベントループ実行中の場合は単に警告を出すだけにする
         try:
-            # 非同期クリーンアップを使用するコードはエラーになる可能性があるので注意
-            # イベントループの状態を確認
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                logger.warning("イベントループ実行中のため非同期クリーンアップをスキップします")
+                return
+            
+            # 非同期クリーンアップが安全に実行できる場合のみ実行
             try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    logger.warning("イベントループ実行中のため非同期クリーンアップをスキップします")
-                    return
-                
-                # 新しいイベントループを作成してクリーンアップ
-                new_loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(new_loop)
-                new_loop.run_until_complete(self.cleanup())
-                new_loop.close()
+                # この場合は新しいイベントループは作成せず、既存のループを使用
+                asyncio.run(self.cleanup())
+            except RuntimeError:
+                # RuntimeErrorは「イベントループが既に閉じられている」または
+                # 「イベントループが既に実行中」の場合に発生する可能性がある
+                logger.warning("既存のイベントループを使用できないため、クリーンアップをスキップします")
             except Exception as e:
                 logger.error(f"非同期クリーンアップ処理中にエラーが発生: {e}")
         except Exception as e:
-            logger.error(f"ブラウザリソースのクリーンアップに失敗しました: {str(e)}")
+            # イベントループが取得できない場合など
+            logger.error(f"クリーンアップ前の状態チェック中にエラーが発生: {e}")
