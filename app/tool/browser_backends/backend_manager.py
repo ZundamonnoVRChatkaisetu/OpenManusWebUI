@@ -45,6 +45,8 @@ def _detect_available_backends() -> List[str]:
         logger.info("Windows環境ではSeleniumバックエンドのみがサポートされます")
         if is_module_available('selenium'):
             backends.append(BACKEND_SELENIUM)
+        else:
+            logger.warning("seleniumモジュールが見つかりません。pip install seleniumでインストールしてください")
     else:
         # 非Windows環境ではすべてのバックエンドを検出
         
@@ -95,7 +97,7 @@ def _get_preferred_backend() -> str:
             _preferred_backend = BACKEND_SELENIUM
             return BACKEND_SELENIUM
         else:
-            logger.error("Windows環境でSeleniumが使用できません")
+            logger.error("Windows環境でSeleniumが使用できません。pip install seleniumでインストールしてください")
             _preferred_backend = BACKEND_NONE
             return BACKEND_NONE
     
@@ -127,6 +129,10 @@ async def get_browser_backend() -> Tuple[str, Any]:
     
     # 利用可能なバックエンドがない場合
     if backend_name == BACKEND_NONE:
+        if is_windows():
+            logger.error("ブラウザツールに必要なPythonパッケージがインストールされていません")
+            logger.error("次のコマンドを実行して必要なパッケージをインストールしてください:")
+            logger.error("pip install selenium")
         return (BACKEND_NONE, None)
     
     # 既にインスタンスがあればそれを返す
@@ -137,23 +143,32 @@ async def get_browser_backend() -> Tuple[str, Any]:
     try:
         # バックエンドに応じた初期化処理
         if backend_name == BACKEND_SELENIUM:
-            # Seleniumバックエンドの初期化
-            from selenium import webdriver
-            from selenium.webdriver.chrome.options import Options
-            
-            # Chromeオプション設定
-            chrome_options = Options()
-            chrome_options.add_argument("--no-sandbox")
-            chrome_options.add_argument("--disable-dev-shm-usage")
-            chrome_options.add_argument("--disable-gpu")
-            # chrome_options.add_argument("--headless")  # 必要に応じて有効化
-            
-            # WebDriverを初期化
-            driver = webdriver.Chrome(options=chrome_options)
-            logger.info("Selenium WebDriverを正常に初期化しました")
-            
-            _current_backend_instances[backend_name] = driver
-            return (backend_name, driver)
+            # モジュールが利用可能か再確認
+            if not is_module_available('selenium'):
+                logger.error("seleniumモジュールが見つかりません。pip install seleniumでインストールしてください")
+                return (BACKEND_NONE, None)
+                
+            try:
+                # Seleniumバックエンドの初期化
+                from selenium import webdriver
+                from selenium.webdriver.chrome.options import Options
+                
+                # Chromeオプション設定
+                chrome_options = Options()
+                chrome_options.add_argument("--no-sandbox")
+                chrome_options.add_argument("--disable-dev-shm-usage")
+                chrome_options.add_argument("--disable-gpu")
+                # chrome_options.add_argument("--headless")  # 必要に応じて有効化
+                
+                # WebDriverを初期化
+                driver = webdriver.Chrome(options=chrome_options)
+                logger.info("Selenium WebDriverを正常に初期化しました")
+                
+                _current_backend_instances[backend_name] = driver
+                return (backend_name, driver)
+            except Exception as e:
+                logger.error(f"Selenium WebDriverの初期化に失敗しました: {e}")
+                return (BACKEND_NONE, None)
             
         elif backend_name == BACKEND_PLAYWRIGHT:
             # Playwrightバックエンドの初期化
