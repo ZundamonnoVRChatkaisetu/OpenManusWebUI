@@ -7,7 +7,7 @@ import os
 from typing import List, Optional, Dict, Any, Union
 
 from app.agent.manus import Manus
-from app.agent.base import Agent
+from app.agent.base import BaseAgent as Agent
 from app.agent.enhanced_manus import EnhancedManus
 from app.agent.manasvi import Manasvi
 from app.llm.factory import create_llm_client
