@@ -9,7 +9,6 @@ from typing import List, Optional, Dict, Any, Union
 from app.agent.manus import Manus
 from app.agent.base import BaseAgent as Agent
 from app.agent.enhanced_manus import EnhancedManus
-from app.agent.manasvi import Manasvi
 from app.llm.factory import create_llm_client
 from app.web.database import get_project
 
@@ -64,18 +63,3 @@ def create_enhanced_agent(
         agent.language = os.environ["ENHANCED_MANUS_LANGUAGE"]
     
     return agent
-
-
-def create_manasvi_agent(prompt: str, llm_vendor: str = "open-webui") -> Manasvi:
-    """
-    Manasviエージェントを生成
-
-    Args:
-        prompt: ユーザープロンプト
-        llm_vendor: LLMベンダー名
-
-    Returns:
-        生成されたManasviエージェント
-    """
-    llm = create_llm_client(llm_vendor)
-    return Manasvi(llm)
