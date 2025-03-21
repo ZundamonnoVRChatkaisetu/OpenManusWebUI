@@ -1,0 +1,237 @@
+/**
+ * generated_files.css
+ * モデルが作成したファイルの表示に関するスタイル
+ */
+
+.generated-files-container {
+    margin-bottom: 20px;
+    border-radius: 8px;
+    background-color: var(--panel-bg);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.generated-files-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background-color: rgba(76, 111, 255, 0.05);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.generated-files-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.generated-files-title-icon {
+    font-size: 18px;
+}
+
+.generated-files-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.generated-files-controls button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 14px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.generated-files-controls button:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: var(--text-color);
+}
+
+.generated-files-list {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.generated-file-item {
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color 0.2s ease;
+    cursor: pointer;
+}
+
+.generated-file-item:last-child {
+    border-bottom: none;
+}
+
+.generated-file-item:hover {
+    background-color: rgba(76, 111, 255, 0.05);
+}
+
+.generated-file-icon {
+    font-size: 20px;
+    margin-right: 12px;
+    color: var(--primary-color);
+}
+
+.generated-file-info {
+    flex: 1;
+}
+
+.generated-file-name {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    color: var(--text-color);
+}
+
+.generated-file-meta {
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.generated-file-project {
+    background-color: rgba(76, 111, 255, 0.1);
+    color: var(--primary-color);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+}
+
+.generated-file-timestamp {
+    font-size: 11px;
+}
+
+.generated-file-actions {
+    display: flex;
+    gap: 8px;
+    margin-left: 8px;
+}
+
+.generated-file-action-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 14px;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.generated-file-action-btn:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: var(--text-color);
+}
+
+.generated-file-preview {
+    background-color: var(--panel-bg);
+    border-top: 1px solid var(--border-color);
+    padding: 16px;
+    max-height: 200px;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    display: none;
+}
+
+.generated-file-preview.active {
+    display: block;
+}
+
+.generated-files-empty {
+    padding: 20px 16px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-style: italic;
+}
+
+/* アニメーション */
+.file-highlight-animation {
+    animation: file-highlight 1s ease;
+}
+
+@keyframes file-highlight {
+    0%, 100% { background-color: rgba(76, 111, 255, 0); }
+    50% { background-color: rgba(76, 111, 255, 0.2); }
+}
+
+/* ChatGPTスタイルのUI変更 */
+.chatgpt-theme .generated-files-container {
+    background-color: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    margin: 16px 0;
+}
+
+.chatgpt-theme .generated-files-header {
+    background-color: #f7f7f8;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.chatgpt-theme .generated-files-title {
+    color: #202123;
+}
+
+.chatgpt-theme .generated-file-item:hover {
+    background-color: #f7f7f8;
+}
+
+.chatgpt-theme .generated-file-icon {
+    color: #10a37f;
+}
+
+.chatgpt-theme .generated-file-project {
+    background-color: #f0f0f0;
+    color: #374151;
+}
+
+/* レスポンシブデザイン */
+@media (max-width: 768px) {
+    .generated-files-container {
+        margin-bottom: 15px;
+    }
+    
+    .generated-files-header {
+        padding: 10px 12px;
+    }
+    
+    .generated-files-title {
+        font-size: 14px;
+    }
+    
+    .generated-file-item {
+        padding: 8px 12px;
+    }
+    
+    .generated-file-name {
+        font-size: 13px;
+    }
+    
+    .generated-file-meta {
+        font-size: 11px;
+    }
+    
+    .generated-file-preview {
+        padding: 12px;
+        max-height: 150px;
+        font-size: 12px;
+    }
+}
