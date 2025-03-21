@@ -1,7 +1,7 @@
 import threading
 import tomllib
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 from pydantic import BaseModel, Field
 
@@ -13,6 +13,11 @@ def get_project_root() -> Path:
 
 PROJECT_ROOT = get_project_root()
 WORKSPACE_ROOT = PROJECT_ROOT / "workspace"
+PROJECT_WORKSPACE_ROOT = PROJECT_ROOT / "project_workspace"
+
+# ワークスペースディレクトリの作成
+WORKSPACE_ROOT.mkdir(exist_ok=True)
+PROJECT_WORKSPACE_ROOT.mkdir(exist_ok=True)
 
 
 class LLMSettings(BaseModel):
@@ -25,8 +30,17 @@ class LLMSettings(BaseModel):
     api_version: str = Field(..., description="Azure Openai version if AzureOpenai")
 
 
+class WorkspaceSettings(BaseModel):
+    enabled: bool = Field(True, description="Whether to use workspace for file operations")
+    auto_read: bool = Field(True, description="Automatically read files in workspace")
+    auto_write: bool = Field(True, description="Automatically write files to workspace")
+    default_path: Path = Field(default=WORKSPACE_ROOT, description="Default workspace path")
+    current_project: Optional[str] = Field(None, description="Current active project name")
+
+
 class AppConfig(BaseModel):
     llm: Dict[str, LLMSettings]
+    workspace: WorkspaceSettings = Field(default_factory=WorkspaceSettings)
 
 
 class Config:
@@ -82,6 +96,8 @@ class Config:
             "api_version": base_llm.get("api_version", ""),
         }
 
+        workspace_config = raw_config.get("workspace", {})
+
         config_dict = {
             "llm": {
                 "default": default_settings,
@@ -89,6 +105,13 @@ class Config:
                     name: {**default_settings, **override_config}
                     for name, override_config in llm_overrides.items()
                 },
+            },
+            "workspace": {
+                "enabled": workspace_config.get("enabled", True),
+                "auto_read": workspace_config.get("auto_read", True),
+                "auto_write": workspace_config.get("auto_write", True),
+                "default_path": Path(workspace_config.get("default_path", str(WORKSPACE_ROOT))),
+                "current_project": workspace_config.get("current_project", None),
             }
         }
 
@@ -97,6 +120,44 @@ class Config:
     @property
     def llm(self) -> Dict[str, LLMSettings]:
         return self._config.llm
+        
+    @property
+    def workspace(self) -> WorkspaceSettings:
+        return self._config.workspace
+
+    def get_workspace_path(self, project_name: Optional[str] = None) -> Path:
+        """
+        プロジェクト名を受け取り、対応するワークスペースパスを返す
+        
+        Args:
+            project_name: プロジェクト名。None の場合は現在のプロジェクトまたはデフォルトのワークスペース
+            
+        Returns:
+            対応するワークスペースパス
+        """
+        # プロジェクト名が指定されている場合
+        if project_name:
+            project_path = PROJECT_WORKSPACE_ROOT / project_name
+            project_path.mkdir(exist_ok=True)
+            return project_path
+            
+        # 設定に現在のプロジェクトがある場合
+        if self.workspace.current_project:
+            project_path = PROJECT_WORKSPACE_ROOT / self.workspace.current_project
+            project_path.mkdir(exist_ok=True)
+            return project_path
+            
+        # それ以外はデフォルトのワークスペース
+        return self.workspace.default_path
+        
+    def set_current_project(self, project_name: Optional[str]):
+        """
+        現在のプロジェクトを設定する
+        
+        Args:
+            project_name: 設定するプロジェクト名。None の場合はデフォルトワークスペースに戻す
+        """
+        self._config.workspace.current_project = project_name
 
 
 config = Config()
