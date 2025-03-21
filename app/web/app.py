@@ -688,44 +688,65 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 from app.web.thinking_tracker import ThinkingTracker
 
 
-# 修改通信跟踪器的实现方式
+# 修改通信跟踪器的実装を改善
 class LLMCommunicationTracker:
-    """跟踪与LLM的通信内容，使用monkey patching代替回调"""
+    """LLMとの通信を追跡し、追加指示を統合するトラッカー"""
 
     def __init__(self, session_id: str, agent=None):
         self.session_id = session_id
         self.agent = agent
-        self.original_run_method = None
+        self.original_completion = None
+        self.original_ask_tool = None
+        self.active = False
 
-        # 如果提供了agent，安装钩子
-        if agent and hasattr(agent, "llm") and hasattr(agent.llm, "completion"):
+        # エージェントが提供されている場合、フックをインストール
+        if agent and hasattr(agent, "llm"):
             self.install_hooks()
 
     def install_hooks(self):
-        """安装钩子以捕获LLM通信内容"""
+        """フックをインストールしてLLM通信を捕捉"""
         if not self.agent or not hasattr(self.agent, "llm"):
             return False
 
-        # 保存原始方法
+        # LLMインスタンスの取得
         llm = self.agent.llm
+        
+        # completion メソッドのフック（存在する場合）
         if hasattr(llm, "completion"):
             self.original_completion = llm.completion
-            # 替换为我们的包装方法
             llm.completion = self._wrap_completion(self.original_completion)
-            return True
-        return False
+        
+        # ask_tool メソッドのフック（存在する場合）- 重要：これが主要な通信パス
+        if hasattr(llm, "ask_tool"):
+            self.original_ask_tool = llm.ask_tool
+            llm.ask_tool = self._wrap_ask_tool(self.original_ask_tool)
+        
+        self.active = True
+        return True
 
     def uninstall_hooks(self):
-        """卸载钩子，恢复原始方法"""
-        if self.agent and hasattr(self.agent, "llm") and self.original_completion:
-            self.agent.llm.completion = self.original_completion
+        """フックを削除し、元のメソッドを復元"""
+        if not self.active or not self.agent or not hasattr(self.agent, "llm"):
+            return
+        
+        llm = self.agent.llm
+        
+        # completion メソッドの復元
+        if self.original_completion and hasattr(llm, "completion"):
+            llm.completion = self.original_completion
+        
+        # ask_tool メソッドの復元
+        if self.original_ask_tool and hasattr(llm, "ask_tool"):
+            llm.ask_tool = self.original_ask_tool
+        
+        self.active = False
 
     def _wrap_completion(self, original_method):
-        """包装LLM的completion方法以捕获输入和输出"""
+        """LLMのcompletion メソッドをラップして入出力を捕捉"""
         session_id = self.session_id
 
         async def wrapped_completion(*args, **kwargs):
-            # 记录输入
+            # 入力を記録
             prompt = kwargs.get("prompt", "")
             if not prompt and args:
                 prompt = args[0]
@@ -735,49 +756,11 @@ class LLMCommunicationTracker:
                     t('send_to_llm'),
                     prompt[:500] + ("..." if len(prompt) > 500 else ""),
                 )
-                
-                # 追加指示がある場合は統合する
-                if session_id in active_tasks and active_tasks[session_id]["modified"]:
-                    additional_instructions = active_tasks[session_id]["additional_instructions"]
-                    if additional_instructions:
-                        # 追加指示を組み合わせた新しいプロンプトを生成
-                        combined_instructions = "\n\n**追加指示**:\n" + "\n".join([
-                            f"- {instr}" for instr in additional_instructions
-                        ])
-                        
-                        # 元のプロンプトに追加指示を追加
-                        if isinstance(prompt, str):
-                            # 元のプロンプトの終わりに追加指示を追加
-                            prompt = prompt + combined_instructions
-                            
-                            # kwargsまたはargsを更新
-                            if "prompt" in kwargs:
-                                kwargs["prompt"] = prompt
-                            else:
-                                args = list(args)  # tupleからlistに変換して修正
-                                args[0] = prompt
-                                args = tuple(args)  # listからtupleに戻す
-                                
-                            # 追加指示を統合したことを記録
-                            ThinkingTracker.add_thinking_step(
-                                session_id,
-                                f"追加指示 ({len(additional_instructions)}件) をタスクに統合しました"
-                            )
-                            
-                            # 追加指示内容を思考ステップに記録
-                            for i, instr in enumerate(additional_instructions):
-                                ThinkingTracker.add_thinking_step(
-                                    session_id,
-                                    f"統合した追加指示 #{i+1}: {instr}"
-                                )
-                            
-                            # 修正フラグをリセット
-                            active_tasks[session_id]["modified"] = False
-
-            # 调用原始方法
+            
+            # 元のメソッドを呼び出し
             result = await original_method(*args, **kwargs)
 
-            # 记录输出
+            # 出力を記録
             if result:
                 content = result
                 if isinstance(result, dict) and "content" in result:
@@ -795,6 +778,114 @@ class LLMCommunicationTracker:
             return result
 
         return wrapped_completion
+
+    def _wrap_ask_tool(self, original_method):
+        """LLMのask_tool メソッドをラップして入出力を捕捉し、追加指示を統合"""
+        session_id = self.session_id
+
+        async def wrapped_ask_tool(*args, **kwargs):
+            # 引数からメッセージを取得
+            messages = kwargs.get("messages", [])
+            if not messages and len(args) > 0:
+                messages = args[0]
+            
+            # 追加指示がある場合、統合する
+            if session_id in active_tasks and active_tasks[session_id]["modified"]:
+                additional_instructions = active_tasks[session_id]["additional_instructions"]
+                if additional_instructions:
+                    # 追加指示テキストの生成
+                    combined_instructions = "\n\n**追加指示**:\n" + "\n".join([
+                        f"- {instr}" for instr in additional_instructions
+                    ])
+                    
+                    # これを新しいユーザーメッセージとして追加
+                    from app.schema import Message
+                    user_msg = Message.user_message(combined_instructions)
+                    
+                    # 元のメッセージリストに追加
+                    if isinstance(messages, list):
+                        messages.append(user_msg)
+                        
+                        # kwargsまたはargsを更新
+                        if "messages" in kwargs:
+                            kwargs["messages"] = messages
+                        else:
+                            args = list(args)
+                            args[0] = messages
+                            args = tuple(args)
+                        
+                        # 追加指示を統合したことを記録
+                        ThinkingTracker.add_thinking_step(
+                            session_id,
+                            f"追加指示 ({len(additional_instructions)}件) をプロセスに統合しました"
+                        )
+                        
+                        # 追加指示の内容を記録
+                        for i, instr in enumerate(additional_instructions):
+                            ThinkingTracker.add_thinking_step(
+                                session_id,
+                                f"統合した追加指示 #{i+1}: {instr}"
+                            )
+                        
+                        # 修正フラグをリセット（処理済みとマーク）
+                        active_tasks[session_id]["modified"] = False
+            
+            # LLMへの送信内容をログに記録
+            complete_messages = []
+            if messages:
+                for msg in messages:
+                    if isinstance(msg, dict):
+                        msg_content = msg.get("content", "")
+                        if msg_content:
+                            complete_messages.append(
+                                f"{msg.get('role', 'unknown')}: {msg_content[:200]}..."
+                            )
+                    elif hasattr(msg, "content") and msg.content:
+                        complete_messages.append(
+                            f"{getattr(msg, 'role', 'unknown')}: {msg.content[:200]}..."
+                        )
+            
+            # メッセージのログを記録（要約形式）
+            if complete_messages:
+                msg_summary = f"メッセージ数: {len(messages)}, 最後のメッセージ: {complete_messages[-1]}"
+                ThinkingTracker.add_communication(
+                    session_id,
+                    t('send_to_llm'),
+                    msg_summary
+                )
+            
+            # 元のメソッドを呼び出し
+            result = await original_method(*args, **kwargs)
+            
+            # 応答を記録
+            if result:
+                content = ""
+                if hasattr(result, "content") and result.content:
+                    content = result.content
+                    ThinkingTracker.add_communication(
+                        session_id,
+                        t('receive_from_llm'),
+                        content[:500] + ("..." if len(content) > 500 else ""),
+                    )
+                
+                # ツール呼び出しの記録
+                if hasattr(result, "tool_calls") and result.tool_calls:
+                    tools_info = []
+                    for i, tool in enumerate(result.tool_calls):
+                        if hasattr(tool, "function") and hasattr(tool.function, "name"):
+                            tools_info.append(f"ツール{i+1}: {tool.function.name}")
+                    
+                    if tools_info:
+                        tool_summary = ", ".join(tools_info)
+                        ThinkingTracker.add_communication(
+                            session_id,
+                            t('receive_from_llm'),
+                            f"ツール呼び出し: {tool_summary}"
+                        )
+            
+            return result
+
+        return wrapped_ask_tool
 
 
 # 导入新创建的LLM包装器
